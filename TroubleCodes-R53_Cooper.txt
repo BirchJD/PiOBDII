@@ -1,0 +1,170 @@
+P0030 HO2S Heater Control Circuit (Bank 1 Sensor 1)
+P0031 HO2S Heater Control Circuit Low (Bank 1 Sensor 1)
+P0032 HO2S Heater Control Circuit High (Bank 1 Sensor 1)
+P0036 HO2S Heater Control Circuit (Bank 1 Sensor 2)
+P0037 HO2S Heater Control Circuit Low (Bank 1 Sensor 2)
+P0038 HO2S Heater Control Circuit High (Bank 1 Sensor 2)
+P0053 HO2S Heater Resistance (Bank 1 Sensor 1)
+P0054 HO2S Heater Resistance (Bank 1 Sensor 2)
+P0107 Manifold Absolute Pressure/Barometric Pressure Circuit Low Input
+P0108 Manifold Absolute Pressure/Barometric Pressure Circuit High Input
+P0112 Intake Air Temperature Sensor 1 Circuit Low
+P0113 Intake Air Temperature Sensor 1 Circuit High
+P0114 Intake Air Temperature Sensor 1 Circuit Intermittent
+P0116 Engine Coolant Temperature Circuit Range/Performance
+P0117 Engine Coolant Temperature Circuit Low
+P0118 Engine Coolant Temperature Circuit High
+P0119 Engine Coolant Temperature Circuit Intermittent
+P0122 Throttle/Pedal Position Sensor/Switch 'A' Circuit Low
+P0123 Throttle/Pedal Position Sensor/Switch 'A' Circuit High
+P0125 Insufficient Coolant Temperature for Closed Loop Fuel Control
+P0128 Coolant Thermostat (Coolant Temperature Below Thermostat Regulating Temperature)
+P0130 O2 Sensor Circuit (Bank 1 Sensor 1)
+P0131 O2 Sensor Circuit Low Voltage (Bank 1 Sensor 1)
+P0132 O2 Sensor Circuit High Voltage (Bank 1 Sensor 1)
+P0133 O2 Sensor Circuit Slow Response (Bank 1 Sensor 1)
+P0135 O2 Sensor Heater Circuit (Bank 1 Sensor 1)
+P0136 O2 Sensor Circuit (Bank 1 Sensor 2)
+P0137 O2 Sensor Circuit Low Voltage (Bank 1 Sensor 2)
+P0138 O2 Sensor Circuit High Voltage (Bank 1 Sensor 2)
+P0141 O2 Sensor Heater Circuit (Bank 1 Sensor 2)
+P0171 System Too Lean (Bank 1)
+P0172 System Too Rich (Bank 1)
+P0201 Injector Circuit/Open - Cylinder 1
+P0202 Injector Circuit/Open - Cylinder 2
+P0203 Injector Circuit/Open - Cylinder 3
+P0204 Injector Circuit/Open - Cylinder 4
+P0222 Throttle/Pedal Position Sensor/Switch 'B' Circuit Low
+P0223 Throttle/Pedal Position Sensor/Switch 'B' Circuit High
+P0261 Cylinder 1 Injector Circuit Low
+P0262 Cylinder 1 Injector Circuit High
+P0264 Cylinder 2 Injector Circuit Low
+P0265 Cylinder 2 Injector Circuit High
+P0267 Cylinder 3 Injector Circuit Low
+P0268 Cylinder 3 Injector Circuit High
+P0270 Cylinder 4 Injector Circuit Low
+P0271 Cylinder 4 Injector Circuit High
+P0300 Random/Multiple Cylinder Misfire Detected
+P0301 Cylinder 1 Misfire Detected
+P0302 Cylinder 2 Misfire Detected
+P0303 Cylinder 3 Misfire Detected
+P0304 Cylinder 4 Misfire Detected
+P0313 Misfire Detected with Low Fuel
+P0324 Knock Control System Error
+P0326 Knock Sensor Circuit Range/Performance
+P0335 Crankshaft Position Sensor 'A' Circuit
+P0336 Crankshaft Position Sensor 'A' Circuit Range/Performance
+P0340 Camshaft Position Sensor 'A' Circuit
+P0341 Camshaft Position Sensor 'A' Circuit Range/Performance
+P0351 Ignition Coil 'A' Primary/Secondary Circuit
+P0352 Ignition Coil 'B' Primary/Secondary Circuit
+P0420 Catalyst System Efficiency Below Threshold (Bank 1)
+P0441 Evaporative Emission System Incorrect Purge Flow
+P0442 Evaporative Emission System Leak Detected (small leak)
+P0443 Evaporative Emission System Purge Control Valve Circuit
+P0444 Evaporative Emission System Purge Control Valve Circuit Open
+P0445 Evaporative Emission System Purge Control Valve Circuit Shorted
+P0455 Evaporative Emission System Leak Detected (large leak)
+P0456 Evaporative Emission System Leak Detected (very small leak)
+P0500 Vehicle Speed Sensor 'A'
+P0506 Idle Air Control System RPM Lower Than Expected
+P0507 Idle Air Control System RPM Higher Than Expected
+P0601 Internal Control Module Memory Check Sum Error
+P0603 Internal Control Module Keep Alive Memory (KAM) Error
+P0604 Internal Control Module Random Access Memory (RAM) Error
+P0638 Throttle Actuator Control Range/Performance (Bank 1)
+P0642 Sensor Reference Voltage 'A' Circuit Low
+P0643 Sensor Reference Voltage 'A' Circuit High
+P0652 Sensor Reference Voltage 'B' Circuit Low
+P0653 Sensor Reference Voltage 'B' Circuit High
+P0705 Transmission Range Sensor 'A' Circuit Malfunction (PRNDL Input)
+P0815 Upshift Switch Circuit
+P0816 Downshift Switch Circuit
+P1106 Manifold Air Pressure Sensor Too Low at Engine Stop
+P1107 Manifold Air Pressure Sensor Too Low at Idle Engine Running
+P1108 Manifold Air Pressure Sensor Too Low at Full Load for Low Engine Speed
+P1109 Manifold Air Pressure Too High in Deceleration
+P1122 Pedal Position Sensor 1 Low Input
+P1123 Pedal Position Sensor 1 High Input
+P1125 Throttle Position Sensor A and B Range/Performance Small Error
+P1126 Throttle Position Sensor A and B Range/Performance Large Error
+P1143 O2 Sensor Activity Check Signal Too High (Bank 1 Sensor 2)
+P1144 O2 Sensor Activity Check Signal Too Low (Bank 1 Sensor 2)
+P1222 Pedal Position Sensor 2 Low Input
+P1223 Pedal Position Sensor 2 High Input
+P1224 Pedal Position Sensor 1 and 2 Range/Performance Error
+P1226 Throttle Malfunction (Flap Malfunction)
+P1229 Throttle Sensor Adaptation Failure
+P1320 Flywheel Adaptation for Misfire Detection Range
+P1321 Flywheel Adaptation for Misfire Detection Performance
+P1366 Ignition Coil 'A' Primary/Secondary Circuit Low
+P1367 Ignition Coil 'B' Primary/Secondary Circuit Low
+P1436 Leakage Diagnostic Pump Open Circuit
+P1437 Leakage Diagnostic Pump Range/Performance
+P1442 Leakage Diagnostic Pump Control Circuit Signal Low
+P1443 Leakage Diagnostic Pump Control Circuit Signal High
+P1475 Leakage Diagnostic Pump Reed Switch Did not Close
+P1476 Leakage Diagnostic Pump Clamped Tube
+P1477 Leakage Diagnostic Pump Reed Switch Did Not Open
+P1570 Electronic Control Module Sensor Supply A Low Output
+P1571 Electronic Control Module Sensor Supply A High Output
+P1572 Electronic Control Module Sensor Supply A Noisy Signal
+P1573 Electronic Control Module Sensor Supply B Low Output
+P1574 Electronic Control Module Sensor Supply B High Output
+P1575 Electronic Control Module Sensor Supply B Noisy Signal
+P1600 External Control Module Random Access Memory (RAM) Error
+P1607 CAN-Version
+P1611 Serial Communication Link Transmission Control Module
+P1612 Serial Communication Link Instrument Pack
+P1613 Serial Communication Link ASC (Automatic Stability Control)
+P1615 Electronic Control Module Processor SPI-Bus Failure
+P1617 Electronic Control Module H Bridge Controller
+P1679 Electronic Throttle Control Monitor Level 2/3 Torque Loss Calculation
+P1680 Electronic Throttle Control Monitor Level 2/3 ADC Processor Fault
+P1681 Electronic Throttle Control Monitor Level 2/3 Engine Speed Calculation Error
+P1682 Electronic Throttle Control Monitor Level 2/3 Idle Speed 'A' Calculation Fault
+P1683 Electronic Throttle Control Monitor Level 2/3 Idle Speed 'B' Calculation Fault
+P1684 Electronic Throttle Control Monitor Level 2/3 Clutch Torque Min Error
+P1685 Electronic Throttle Control Monitor Level 2/3 Clutch Torque Max Error
+P1686 Electronic Throttle Control Monitor Level 2/3 Pedal Position Sensor Diagnostic Error
+P1687 Electronic Throttle Control Monitor Level 2/3 Throttle Position Sensor Diagnostic Error
+P1688 Electronic Throttle Control Monitor Level 2/3 Mass Air Flow Calculation
+P1689 Electronic Throttle Control Monitor Level 2/3 Torque Calculation Error
+P1691 Electronic Throttle Control Monitor Level 2/3 Motorised Throttle Control Engine Speed Limitation Error
+P1692 Electronic Throttle Control Monitor Level 2/3 Motorised Throttle Control and Fuel Injection Switch Off 'A'
+P1693 Electronic Throttle Control Monitor Level 2/3 Motorised Throttle Control and Fuel Injection Switch Off 'B'
+P1698 Transmission Control Module Control Error
+P1699 Transmission Control Module Checksum Error
+P1705 Transmission Control Module LED Output Open Circuit
+P1706 Transmission Control Module LED Output Short Circuit
+P1739 Clutch Solenoid Communication Error
+P1741 Clutch Solenoid Open Circuit
+P1742 Clutch Solenoid Short Circuit
+P1749 Secondary Pressure Solenoid Communication Error
+P1751 Secondary Pressure Solenoid Open Circuit
+P1752 Secondary Pressure Solenoid Short Circuit
+P1785 Transmission Ratio Control Actuator Circuit Malfunction
+P1786 Transmission Ratio Control Actuator Circuit Range/Performance
+P1787 Transmission Ratio Control Actuator Open Circuit
+P1788 Transmission Ratio Control Actuator Short Circuit
+P1789 Transmission Ratio Control Actuator Communication Error
+P1815 Wheel Plus Switch Error Low Input
+P1816 Wheel Minus Switch Error Low Input
+P2096 Post Catalyst Fuel Trim System Too Lean (Bank 1)
+P2097 Post Catalyst Fuel Trim System Too Rich (Bank 1)
+P2122 Throttle/Pedal Position Sensor/Switch 'D' Circuit Low Input
+P2123 Throttle/Pedal Position Sensor/Switch 'D' Circuit High Input
+P2127 Throttle/Pedal Position Sensor/Switch 'E' Circuit Low Input
+P2128 Throttle/Pedal Position Sensor/Switch 'E' Circuit High Input
+P2138 Throttle/Pedal Position Sensor/Switch 'D' / 'E' Voltage Correlation
+P2270 O2 Sensor Signal Stuck Lean (Bank 1 Sensor 2)
+P2271 O2 Sensor Signal Stuck Rich (Bank 1 Sensor 2)
+P2300 Ignition Coil 'A' Primary Control Circuit Low
+P2301 Ignition Coil 'A' Primary Control Circuit High
+P2303 Ignition Coil 'B' Primary Control Circuit Low
+P2304 Ignition Coil 'B' Primary Control Circuit High
+P2400 Evaporative Emission System Leak Detection Pump Control Circuit/Open
+P2401 Evaporative Emission System Leak Detection Pump Control Circuit Low
+P2402 Evaporative Emission System Leak Detection Pump Control Circuit High
+P2404 Evaporative Emission System Leak Detection Pump Sense Circuit Range/Performance
+
