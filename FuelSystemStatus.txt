@@ -1,0 +1,7 @@
+00 NOT PRESENT
+01 Open loop due to insufficient engine temperature
+02 Closed loop, using oxygen sensor feedback to determine fuel mix
+04 Open loop due to engine load OR fuel cut due to deceleration
+08 Open loop due to system failure
+16 Closed loop, using at least one oxygen sensor but there is a fault in the feedback system
+

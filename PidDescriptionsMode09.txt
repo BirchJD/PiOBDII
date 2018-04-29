@@ -1,0 +1,13 @@
+00 ! Mode 9 supported PIDs (01 to 20)
+01 ! VIN Message Count in PID 02
+02 Vehicle Identification Number (VIN)
+03 ! Calibration ID message count for PID 04
+04 Calibration ID
+05 ! Calibration verification numbers (CVN) message count for PID 06
+06 Calibration Verification Numbers (CVN)
+07 ! In-use performance tracking message count for PID 08 and 0B
+08 In-use performance tracking for spark ignition vehicles
+09 ! ECU name message count for PID 0A
+0A ECU name 
+0B In-use performance tracking for compression ignition vehicles
+

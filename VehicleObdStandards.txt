@@ -1,0 +1,34 @@
+01 OBD-II as defined by the CARB
+02 OBD as defined by the EPA
+03 OBD and OBD-II
+04 OBD-I
+05 Not OBD compliant
+06 EOBD (Europe)
+07 EOBD and OBD-II
+08 EOBD and OBD
+09 EOBD, OBD and OBD II
+0A JOBD (Japan)
+0B JOBD and OBD II
+0C JOBD and EOBD
+0D JOBD, EOBD, and OBD II
+0E Reserved
+0F Reserved
+10 Reserved
+11 Engine Manufacturer Diagnostics (EMD)
+12 Engine Manufacturer Diagnostics Enhanced (EMD+)
+13 Heavy Duty On-Board Diagnostics (Child/Partial) (HD OBD-C)
+14 Heavy Duty On-Board Diagnostics (HD OBD)
+15 World Wide Harmonized OBD (WWH OBD)
+16 Reserved
+17 Heavy Duty Euro OBD Stage I without NOx control (HD EOBD-I)
+18 Heavy Duty Euro OBD Stage I with NOx control (HD EOBD-I N)
+19 Heavy Duty Euro OBD Stage II without NOx control (HD EOBD-II)
+1A Heavy Duty Euro OBD Stage II with NOx control (HD EOBD-II N)
+1B Reserved
+1C Brazil OBD Phase 1 (OBDBr-1)
+1D Brazil OBD Phase 2 (OBDBr-2)
+1E Korean OBD (KOBD)
+1F India OBD I (IOBD I)
+20 India OBD II (IOBD II)
+21 Heavy Duty Euro OBD Stage VI (HD EOBD-IV)
+

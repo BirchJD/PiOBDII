@@ -1,0 +1,6 @@
+00 NOT PRESENT
+01 Upstream
+02 Downstream of catalytic converter
+04 From the outside atmosphere or off
+08 Pump commanded on for diagnostics
+

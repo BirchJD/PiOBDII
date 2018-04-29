@@ -1,0 +1,34 @@
+0100 ! OBD Monitor IDs supported ($01 – $20)
+0101 O2 Sensor Monitor Bank 1 Sensor 1
+0102 O2 Sensor Monitor Bank 1 Sensor 2
+0103 O2 Sensor Monitor Bank 1 Sensor 3
+0104 O2 Sensor Monitor Bank 1 Sensor 4
+0105 O2 Sensor Monitor Bank 2 Sensor 1
+0106 O2 Sensor Monitor Bank 2 Sensor 2
+0107 O2 Sensor Monitor Bank 2 Sensor 3
+0108 O2 Sensor Monitor Bank 2 Sensor 4
+0109 O2 Sensor Monitor Bank 3 Sensor 1
+010A O2 Sensor Monitor Bank 3 Sensor 2
+010B O2 Sensor Monitor Bank 3 Sensor 3
+010C O2 Sensor Monitor Bank 3 Sensor 4
+010D O2 Sensor Monitor Bank 4 Sensor 1
+010E O2 Sensor Monitor Bank 4 Sensor 2
+010F O2 Sensor Monitor Bank 4 Sensor 3
+0110 O2 Sensor Monitor Bank 4 Sensor 4
+0201 O2 Sensor Monitor Bank 1 Sensor 1
+0202 O2 Sensor Monitor Bank 1 Sensor 2
+0203 O2 Sensor Monitor Bank 1 Sensor 3
+0204 O2 Sensor Monitor Bank 1 Sensor 4
+0205 O2 Sensor Monitor Bank 2 Sensor 1
+0206 O2 Sensor Monitor Bank 2 Sensor 2
+0207 O2 Sensor Monitor Bank 2 Sensor 3
+0208 O2 Sensor Monitor Bank 2 Sensor 4
+0209 O2 Sensor Monitor Bank 3 Sensor 1
+020A O2 Sensor Monitor Bank 3 Sensor 2
+020B O2 Sensor Monitor Bank 3 Sensor 3
+020C O2 Sensor Monitor Bank 3 Sensor 4
+020D O2 Sensor Monitor Bank 4 Sensor 1
+020E O2 Sensor Monitor Bank 4 Sensor 2
+020F O2 Sensor Monitor Bank 4 Sensor 3
+0210 O2 Sensor Monitor Bank 4 Sensor 4
+
