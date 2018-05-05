@@ -16,40 +16,38 @@
 #/*                                                                         */
 #/* (C) Jason Birch 2018-05-01 V1.02                                        */
 #/*                                                                         */
-#/* Class: Button                                                           */
-#/* Display text data and receive touch events.                             */
+#/* Class: Plot                                                             */
+#/* Plot a history of selected value data over time.                        */
 #/***************************************************************************/
 
 
 import pygame
 import Visual
+import Button
 
 
-class Button(Visual.Visual):
-	def __init__(self, ThisSurface, Name, xPos, yPos, xLen, yLen, Text, Align = Visual.Visual.ALIGN_TEXT_CENTER):
-		Visual.Visual.__init__(self, ThisSurface, Name, xPos, yPos, xLen, yLen, Text, Align)
+class Plot(Visual.Visual):
+	def __init__(self, ThisSurface, Name, xPos, yPos, xLen, yLen, Text):
+		Visual.Visual.__init__(self, ThisSurface, Name, xPos, yPos, xLen, yLen, Text)
 
 
 
-#/*************************************************************************/
-#/* Check if an event occurred in this buttons area. Perform any required */
-#/* actions and let the caller know if the button was touched.            */
-#/*************************************************************************/
+#/**********************************************************************/
+#/* Check if an event occurred in this plot area. Perform any required */
+#/* actions and let the caller know if the plot area was touched.      */
+#/**********************************************************************/
 	def IsEvent(self, EventType, xPos, yPos, PointerButton, xOffset = 0, yOffset = 0):
 		self.Result = Visual.Visual.IsEvent(self, EventType, xPos, yPos, PointerButton, xOffset, yOffset)
-		# Tell caller the name of the button that was touched.
 		if self.Result != False:
 			self.Result["BUTTON"] = self.Name
 		return self.Result
 
 
 
-#/*********************************************/
-#/* Draw this button on the provided surface. */
-#/*********************************************/
-	def Display(self, ThisSurface, xOffset = 0, yOffset = 0):
-		pygame.draw.rect(ThisSurface, self.ColourFill, (xOffset + self.xPos, yOffset + self.yPos, self.xLen, self.yLen), 0)
-		pygame.draw.rect(ThisSurface, self.ColourBorder, (xOffset + self.xPos, yOffset + self.yPos, self.xLen, self.yLen), 1)
-		# Draw any super class elements.
-		Visual.Visual.Display(self, ThisSurface, xOffset, yOffset)
+#/************************************************/
+#/* Draw this plot area on the provided surface. */
+#/************************************************/
+	def Display(self, ThisSurface):
+		pygame.draw.rect(ThisSurface, self.ColourFill, (self.xPos, self.yPos, self.xLen, self.yLen), 0)
+		pygame.draw.rect(ThisSurface, self.ColourBorder, (self.xPos, self.yPos, self.xLen, self.yLen), 1)
 

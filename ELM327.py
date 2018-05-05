@@ -14,7 +14,11 @@
 #/***************************************************************************/
 #/* Raspberry Pi ELM327 OBBII CAN BUS Diagnostic Software.                  */
 #/*                                                                         */
-#/* (C) Jason Birch 2018-04-27 V1.01                                        */
+#/* (C) Jason Birch 2018-05-01 V1.02                                        */
+#/*                                                                         */
+#/* Class: ELM327                                                           */
+#/* Handle communications with an ELM327 device, communicating with the     */
+#/* CAN BUS on a car ECU.                                                   */
 #/***************************************************************************/
 
 
@@ -25,14 +29,16 @@ import serial
 
 
 class ELM327:
+	CONNECT_ELM327_FAIL = 1
+	CONNECT_CAN_BUS_FAIL = 2
+
 	# Serial port constants. 
 	SERIAL_PORT_NAME = "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_A800eaG9-if00-port0"
 	SERIAL_PORT_BAUD = 38400
-	SERIAL_PORT_TIME_OUT = 60
+	SERIAL_PORT_TIME_OUT = 7
 
 	# ELM327 Device related constants.
 	ELM_CONNECT_SETTLE_PERIOD = 5
-	ELM_CONNECT_TRY_COUNT = 5
 
 	# Constant string responses.
 	STRING_NOT_IMPLEMENTED = "!NOT IMPLEMENTED!"
@@ -62,9 +68,8 @@ class ELM327:
 					Digit, Code = ThisLine.partition(" ")[::2]
 					self.VehicleObdStandards[Digit] = Code.strip()
 		except Exception as Catch:
-			print("***** ERROR ***** VehicleObdStandards.txt : " + str(Catch))
+			print(self.STRING_ERROR + " VehicleObdStandards.txt : " + str(Catch))
 			self.InitResult += "FAILED TO READ FILE: VehicleObdStandards.txt\n"
-
 
 #  /**********************************************************/
 # /* Read Commanded Secondary Air Status lookup table data. */
@@ -76,9 +81,8 @@ class ELM327:
 					Digit, Code = ThisLine.partition(" ")[::2]
 					self.CommandedSecondaryAirStatus[Digit] = Code.strip()
 		except Exception as Catch:
-			print("***** ERROR ***** CommandedSecondaryAirStatus.txt : " + str(Catch))
+			print(self.STRING_ERROR + " CommandedSecondaryAirStatus.txt : " + str(Catch))
 			self.InitResult += "FAILED TO READ FILE: CommandedSecondaryAirStatus.txt\n"
-
 
 #  /**********************************************/
 # /* Read Fuel System Status lookup table data. */
@@ -90,9 +94,8 @@ class ELM327:
 					Digit, Code = ThisLine.partition(" ")[::2]
 					self.FuelSystemStatus[Digit] = Code.strip()
 		except Exception as Catch:
-			print("***** ERROR ***** FuelSystemStatus.txt : " + str(Catch))
+			print(self.STRING_ERROR + " FuelSystemStatus.txt : " + str(Catch))
 			self.InitResult += "FAILED TO READ FILE: FuelSystemStatus.txt\n"
-
 
 #  /**********************************************/
 # /* Read OBDII Trouble Code lookup table data. */
@@ -104,7 +107,7 @@ class ELM327:
 					Digit, Code = ThisLine.partition(" ")[::2]
 					self.TroubleCodePrefix[Digit] = Code.strip()
 		except Exception as Catch:
-			print("***** ERROR ***** TroubleCodePrefix.txt : " + str(Catch))
+			print(self.STRING_ERROR + " TroubleCodePrefix.txt : " + str(Catch))
 			self.InitResult += "FAILED TO READ FILE: TroubleCodePrefix.txt\n"
 
 #  /**********************************************************/
@@ -118,7 +121,7 @@ class ELM327:
 					Code, Description = ThisLine.partition(" ")[::2]
 					self.TroubleCodeDescriptions[Code] = Description.strip()
 		except Exception as Catch:
-			print("***** ERROR ***** TroubleCodes-ISO-SAE.txt : " + str(Catch))
+			print(self.STRING_ERROR + " TroubleCodes-ISO-SAE.txt : " + str(Catch))
 			self.InitResult += "FAILED TO READ FILE: TroubleCodes-ISO-SAE.txt\n"
 
 		# Load the Vehicle/Manufacturer Trouble Code Descriptions.
@@ -128,7 +131,7 @@ class ELM327:
 					Code, Description = ThisLine.partition(" ")[::2]
 					self.TroubleCodeDescriptions[Code] = Description.strip()
 		except Exception as Catch:
-			print("***** ERROR ***** TroubleCodes-R53_Cooper_S.txt : " + str(Catch))
+			print(self.STRING_ERROR + " TroubleCodes-R53_Cooper_S.txt : " + str(Catch))
 			self.InitResult += "FAILED TO READ FILE: TroubleCodes-R53_Cooper_S.txt\n"
 
 #  /***************************************************/
@@ -167,38 +170,11 @@ class ELM327:
 		except:
 			self.InitResult += "FAILED TO READ FILE: PidDescriptionsMode09.txt\n"
 
-#  /****************************************************************/
-# /* Open the required serial port which the ELM327 device is on. */
-#/****************************************************************/
-		try:
-			self.ELM327 = serial.Serial(self.SERIAL_PORT_NAME, self.SERIAL_PORT_BAUD)
-			self.ELM327.timeout = self.SERIAL_PORT_TIME_OUT
-			self.ELM327.write_timeout = self.SERIAL_PORT_TIME_OUT
 
-			# Initialize the ELM327 device.
-			self.Response = self.GetResponse(b'AT Z\r')
 
-			# Echo Off, for faster communications.
-			self.Response = self.GetResponse(b'AT E0\r')
-			if self.Response != 'AT E0\nOK\n':
-				self.InitResult += "FAILED: AT E0 (Set Echo Off)\n"
-
-			# Don't print space characters, for faster communications.
-			self.Response = self.GetResponse(b'AT S0\r')
-			if self.Response != 'OK\n':
-				self.InitResult += "FAILED: AT S0 (Set Space Characters Off)\n"
-
-			# Set CAN communication protocol to ISO 9141-2 or auto detect on fail.
-			self.Response = self.GetResponse(b'AT SP A3\r')
-			if self.Response != 'OK\n':
-				self.InitResult += "FAILED: AT SP A3 (Set Protocol ISO 9141-2 / Auto)\n"
-
-			# Set CAN Baud to high speed.
-			self.Response = self.GetResponse(b'AT IB 10\r')
-			if self.Response != 'OK\n':
-				self.InitResult += "FAILED: AT IB 10 (Set High Speed CAN BUS)\n"
-		except:
-			self.InitResult += "FAILED TO INITIALIZE ELM327 DEVICE.\n"
+	def __del__(self):
+		# Close the ELM327 device after use.
+		self.Close()
 
 
 
@@ -249,34 +225,34 @@ class ELM327:
 		self.Result = ""
 
 		# Get the current serial port in use by the ELM327 device.
-		self.Result += "Serial Port: " + self.ELM327.name + "\n"
+		self.Result += "Serial Port|" + self.ELM327.name + "\n"
 		# Get the ELM device version.
 		self.Response = self.GetResponse(b'AT I\r')
-		self.Result += "ELM Device Version:      " + self.Response
+		self.Result += "ELM Device Version|" + self.Response
 		# Get the ELM device description.
 		self.Response = self.GetResponse(b'AT @1\r')
-		self.Result += "ELM Device Description:  " + self.Response
+		self.Result += "ELM Device Description|" + self.Response
 		# Get the ELM device user supplied description.
 		self.Response = self.GetResponse(b'AT @2\r')
-		self.Result += "ELM Device User Data:    " + self.Response
+		self.Result += "ELM Device User Data|" + self.Response
 		# Get the current OBDII data protocol after OBDII CAN BUS communication.
 		self.Response = self.GetResponse(b'AT DP\r')
-		self.Result += "Using CAN BUS Protocol:  " + self.Response
+		self.Result += "Using CAN BUS Protocol|" + self.Response
 		# Get the Voltage measured at the OBDII connector.
 		self.Response = self.GetResponse(b'AT RV\r')
-		self.Result += "Volt At OBDII Connector: " + self.Response
+		self.Result += "Volt At OBDII Connector|" + self.Response
 		# Get the CAN status.
 		self.Response = self.GetResponse(b'AT CS\r')
-		self.Result += "CAN Status:              " + self.Response
+		self.Result += "CAN Status|" + self.Response
 		# Get the key words.
 		self.Response = self.GetResponse(b'AT KW\r')
-		self.Result += "Key Words:               " + self.Response
+		self.Result += "Key Words|" + self.Response
 		# Get the ELM327 buffer dump.
 		self.Response = self.GetResponse(b'AT BD\r')
-		self.Result += "ELM327 Buffer Dump:      " + self.Response
+		self.Result += "ELM327 Buffer Dump|" + self.Response
 		# Get the programmable paramaters.
 		self.Response = self.GetResponse(b'AT PPS\r')
-		self.Result += "ELM327 Programmable Paramaters:\n" + self.Response
+		self.Result += "ELM327 Programmable Paramaters:|\n" + self.Response
 
 		return self.Result
 
@@ -288,18 +264,53 @@ class ELM327:
 #/* the ECU supports.                                    */
 #/********************************************************/
 	def Connect(self):
-		self.Result = True
+		self.Result = 0
 
-		# Wait before tring to connect to ensure EML device is idle.
-		time.sleep(self.ELM_CONNECT_SETTLE_PERIOD)
-		# Request Mode 01 PID 00 (Supported PIDs for Mode 01) to test connection.
-		self.Response = self.GetResponse(b'0100\r')
-		if self.Response.find("UNABLE TO CONNECT") != -1:
-			self.Result = False
-			# Close serial port if connection failed.
-			self.ELM327.close()
+#  /****************************************************************/
+# /* Open the required serial port which the ELM327 device is on. */
+#/****************************************************************/
+		try:
+			self.ELM327 = serial.Serial(self.SERIAL_PORT_NAME, self.SERIAL_PORT_BAUD)
+			self.ELM327.timeout = self.SERIAL_PORT_TIME_OUT
+			self.ELM327.write_timeout = self.SERIAL_PORT_TIME_OUT
 
-		if self.Result == True:
+			# Initialize the ELM327 device.
+			self.Response = self.GetResponse(b'AT Z\r')
+
+			# Echo Off, for faster communications.
+			self.Response = self.GetResponse(b'AT E0\r')
+			if self.Response != 'AT E0\nOK\n':
+				self.InitResult += "FAILED: AT E0 (Set Echo Off)\n"
+
+			# Don't print space characters, for faster communications.
+			self.Response = self.GetResponse(b'AT S0\r')
+			if self.Response != 'OK\n':
+				self.InitResult += "FAILED: AT S0 (Set Space Characters Off)\n"
+
+			# Set CAN communication protocol to ISO 9141-2 or auto detect on fail.
+			self.Response = self.GetResponse(b'AT SP A3\r')
+			if self.Response != 'OK\n':
+				self.InitResult += "FAILED: AT SP A3 (Set Protocol ISO 9141-2 / Auto)\n"
+
+			# Set CAN Baud to high speed.
+			self.Response = self.GetResponse(b'AT IB 10\r')
+			if self.Response != 'OK\n':
+				self.InitResult += "FAILED: AT IB 10 (Set High Speed CAN BUS)\n"
+		except:
+			self.Result = 1
+			self.InitResult += "FAILED TO INITIALIZE ELM327 DEVICE.\n"
+
+		if self.Result == 0:
+			# Wait before tring to connect to ensure EML device is idle.
+			time.sleep(self.ELM_CONNECT_SETTLE_PERIOD)
+			# Request Mode 01 PID 00 (Supported PIDs for Mode 01) to test connection.
+			self.Response = self.GetResponse(b'0100\r')
+			if self.Response.find("UNABLE TO CONNECT") != -1:
+				self.Result = 2
+				# Close serial port if connection failed.
+				self.ELM327.close()
+
+		if self.Result == 0:
 			# Manually add standard PIDs supported, prefix with '!', don't show as user selectable option.
 			# Application specific display locations.
 			self.ValidPIDs['03'] = "! Show stored Diagnostic Trouble Codes"
@@ -353,7 +364,7 @@ class ELM327:
 			else:
 				self.Result = self.STRING_NOT_IMPLEMENTED
 		except Exception as Catch:
-			print("***** ERROR ***** in PID" + str(PID) + " : " + str(Catch))
+			print(self.STRING_ERROR + " in PID" + str(PID) + " : " + str(Catch))
 			self.Result = self.STRING_ERROR
 
 		return self.Result
@@ -466,7 +477,7 @@ class ELM327:
 # PID0101 Get Monitor status since DTCs cleared from the ECU.
 	def PID0101(self):
 		self.Result = self.STRING_NO_DATA
-		self.ResultArray = {}
+		self.ResultArray = ()
 
 		if '0101' in self.ValidPIDs:
 			self.Response = self.GetResponse(b'0101\r')
@@ -474,98 +485,156 @@ class ELM327:
 
 			self.ResultVal1 = int(self.Response[:2], 16)
 			if (self.ResultVal1 & 0x80) != 0:
-				self.ResultArray["MIL"] = "ON"
+				self.ResultArray += ("MIL:ON",)
 			else:
-				self.ResultArray["MIL"] = "OFF"
-			self.ResultArray["TROUBLE CODE COUNT"] = int(self.ResultVal1 & 0x7F)
+				self.ResultArray += ("MIL:OFF",)
+			self.ResultArray += ("TROUBLE CODE COUNT|" + str(self.ResultVal1 & 0x7F),)
 
 			self.ResultVal1 = int(self.Response[2:4], 16)
+
+			AppendText = ""
 			if (self.ResultVal1 & 0x01) != 0:
-				self.ResultArray["MISSFIRE"] = "TEST"
-			if (self.ResultVal1 & 0x10) != 0:
-				self.ResultArray["MISSFIRE"] += " [INCOMPLETE]"
+				AppendText = "MISSFIRE TEST"
+				if (self.ResultVal1 & 0x10) != 0:
+					AppendText += "|[INCOMPLETE]"
+			self.ResultArray += (AppendText,)
+
+			AppendText = ""
 			if (self.ResultVal1 & 0x02) != 0:
-				self.ResultArray["FUEL SYSTEM"] = "TEST"
-			if (self.ResultVal1 & 0x20) != 0:
-				self.ResultArray["FUEL SYSTEM"] += " [INCOMPLETE]"
+				AppendText = "FUEL SYSTEM TEST"
+				if (self.ResultVal1 & 0x20) != 0:
+					AppendText += "|[INCOMPLETE]"
+			self.ResultArray += (AppendText,)
+
+			AppendText = ""
 			if (self.ResultVal1 & 0x04) != 0:
-				self.ResultArray["COMPONENTS"] = "TEST"
-			if (self.ResultVal1 & 0x40) != 0:
-				self.ResultArray["COMPONENTS"] += " [INCOMPLETE]"
+				AppendText = "COMPONENTS TEST"
+				if (self.ResultVal1 & 0x40) != 0:
+					AppendText += "|[INCOMPLETE]"
+			self.ResultArray += (AppendText,)
+
 			if (self.ResultVal1 & 0x08) != 0:
-				self.ResultArray["IGNITION"] = "COMPRESSION"
+				self.ResultArray += ("IGNITION|COMPRESSION",)
 
 				self.ResultVal1 = int(self.Response[4:6], 16)
 				self.ResultVal2 = int(self.Response[6:8], 16)
+
+				AppendText = ""
 				if (self.ResultVal1 & 0x01) != 0:
-					self.ResultArray["NMHC CATALYST"] = "TEST"
-				if (self.ResultVal2 & 0x01) != 0:
-					self.ResultArray["NMHC CATALYST"] += " [INCOMPLETE]"
+					AppendText = "NMHC CATALYST TEST"
+					if (self.ResultVal2 & 0x01) != 0:
+						AppendText += "|[INCOMPLETE]"
+				self.ResultArray += (AppendText,)
+
+				AppendText = ""
 				if (self.ResultVal1 & 0x02) != 0:
-					self.ResultArray["NOx/SCR MONITOR"] = "TEST"
-				if (self.ResultVal2 & 0x02) != 0:
-					self.ResultArray["NOx/SCR MONITOR"] += " [INCOMPLETE]"
+					AppendText = "NOx/SCR MONITOR TEST"
+					if (self.ResultVal2 & 0x02) != 0:
+						AppendText += "|[INCOMPLETE]"
+				self.ResultArray += (AppendText,)
+
+				AppendText = ""
 				if (self.ResultVal1 & 0x04) != 0:
-					self.ResultArray["Reserved 1"] = "TEST"
-				if (self.ResultVal2 & 0x04) != 0:
-					self.ResultArray["Reserved 1"] += " [INCOMPLETE]"
+					AppendText = "Reserved 1 TEST"
+					if (self.ResultVal2 & 0x04) != 0:
+						AppendText += "|[INCOMPLETE]"
+				self.ResultArray += (AppendText,)
+
+				AppendText = ""
 				if (self.ResultVal1 & 0x08) != 0:
-					self.ResultArray["BOOST PRESSURE"] = "TEST"
-				if (self.ResultVal2 & 0x08) != 0:
-					self.ResultArray["BOOST PRESSURE"] += " [INCOMPLETE]"
+					AppendText = "BOOST PRESSURE TEST"
+					if (self.ResultVal2 & 0x08) != 0:
+						AppendText += "|[INCOMPLETE]"
+				self.ResultArray += (AppendText,)
+
+				AppendText = ""
 				if (self.ResultVal1 & 0x10) != 0:
-					self.ResultArray["Reserved 2"] = "TEST"
-				if (self.ResultVal2 & 0x10) != 0:
-					self.ResultArray["Reserved 2"] += " [INCOMPLETE]"
+					AppendText = "Reserved 2 TEST"
+					if (self.ResultVal2 & 0x10) != 0:
+						AppendText += "|[INCOMPLETE]"
+				self.ResultArray += (AppendText,)
+
+				AppendText = ""
 				if (self.ResultVal1 & 0x20) != 0:
-					self.ResultArray["EXHAUST GAS SENSOR"] = "TEST"
-				if (self.ResultVal2 & 0x20) != 0:
-					self.ResultArray["EXHAUST GAS SENSOR"] += " [INCOMPLETE]"
+					AppendText = "EXHAUST GAS SENSOR TEST"
+					if (self.ResultVal2 & 0x20) != 0:
+						AppendText += "|[INCOMPLETE]"
+				self.ResultArray += (AppendText,)
+
+				AppendText = ""
 				if (self.ResultVal1 & 0x40) != 0:
-					self.ResultArray["PM FILTER MONITORING"] = "TEST"
-				if (self.ResultVal2 & 0x40) != 0:
-					self.ResultArray["PM FILTER MONITORING"] += " [INCOMPLETE]"
+					AppendText = "PM FILTER MONITORING TEST"
+					if (self.ResultVal2 & 0x40) != 0:
+						AppendText += "|[INCOMPLETE]"
+				self.ResultArray += (AppendText,)
+
+				AppendText = ""
 				if (self.ResultVal1 & 0x80) != 0:
-					self.ResultArray["EGR/VVT SYSTEM"] = "TEST"
-				if (self.ResultVal2 & 0x80) != 0:
-					self.ResultArray["EGR/VVT SYSTEM"] += " [INCOMPLETE]"
+					AppendText = "EGR/VVT SYSTEM TEST"
+					if (self.ResultVal2 & 0x80) != 0:
+						AppendText += "|[INCOMPLETE]"
+				self.ResultArray += (AppendText,)
 			else:
-				self.ResultArray["IGNITION"] = "SPARK"
+				self.ResultArray += ("IGNITION|SPARK",)
 
 				self.ResultVal1 = int(self.Response[4:6], 16)
 				self.ResultVal2 = int(self.Response[6:8], 16)
+
+				AppendText = ""
 				if (self.ResultVal1 & 0x01) != 0:
-					self.ResultArray["CATALYST"] = "TEST"
-				if (self.ResultVal2 & 0x01) != 0:
-					self.ResultArray["CATALYST"] += " [INCOMPLETE]"
+					AppendText = "CATALYST TEST"
+					if (self.ResultVal2 & 0x01) != 0:
+						AppendText += "|[INCOMPLETE]"
+				self.ResultArray += (AppendText,)
+
+				AppendText = ""
 				if (self.ResultVal1 & 0x02) != 0:
-					self.ResultArray["HEATED CATALYST"] = "TEST"
-				if (self.ResultVal2 & 0x02) != 0:
-					self.ResultArray["HEATED CATALYST"] += " [INCOMPLETE]"
+					AppendText = "HEATED CATALYST TEST"
+					if (self.ResultVal2 & 0x02) != 0:
+						AppendText += "|[INCOMPLETE]"
+				self.ResultArray += (AppendText,)
+
+				AppendText = ""
 				if (self.ResultVal1 & 0x04) != 0:
-					self.ResultArray["EVAPORATIVE SYSTEM"] = "TEST"
-				if (self.ResultVal2 & 0x04) != 0:
-					self.ResultArray["EVAPORATIVE SYSTEM"] += " [INCOMPLETE]"
+					AppendText = "EVAPORATIVE SYSTEM TEST"
+					if (self.ResultVal2 & 0x04) != 0:
+						AppendText += "|[INCOMPLETE]"
+				self.ResultArray += (AppendText,)
+
+				AppendText = ""
 				if (self.ResultVal1 & 0x08) != 0:
-					self.ResultArray["SECONDARY AIR SYSTEM"] = "TEST"
-				if (self.ResultVal2 & 0x08) != 0:
-					self.ResultArray["SECONDARY AIR SYSTEM"] += " [INCOMPLETE]"
+					AppendText = "SECONDARY AIR SYSTEM TEST"
+					if (self.ResultVal2 & 0x08) != 0:
+						AppendText += "|[INCOMPLETE]"
+				self.ResultArray += (AppendText,)
+
+				AppendText = ""
 				if (self.ResultVal1 & 0x10) != 0:
-					self.ResultArray["A/C REFRIGERANT"] = "TEST"
-				if (self.ResultVal2 & 0x10) != 0:
-					self.ResultArray["A/C REFRIGERANT"] += " [INCOMPLETE]"
+					AppendText = "A/C REFRIGERANT TEST"
+					if (self.ResultVal2 & 0x10) != 0:
+						AppendText += "|[INCOMPLETE]"
+				self.ResultArray += (AppendText,)
+
+				AppendText = ""
 				if (self.ResultVal1 & 0x20) != 0:
-					self.ResultArray["OXYGEN SENSOR"] = "TEST"
-				if (self.ResultVal2 & 0x20) != 0:
-					self.ResultArray["OXYGEN SENSOR"] += " [INCOMPLETE]"
+					AppendText = "OXYGEN SENSOR TEST"
+					if (self.ResultVal2 & 0x20) != 0:
+						AppendText += "|[INCOMPLETE]"
+				self.ResultArray += (AppendText,)
+
+				AppendText = ""
 				if (self.ResultVal1 & 0x40) != 0:
-					self.ResultArray["OXYGEN SENSOR HEATER"] = "TEST"
-				if (self.ResultVal2 & 0x40) != 0:
-					self.ResultArray["OXYGEN SENSOR HEATER"] += " [INCOMPLETE]"
+					AppendText = "OXYGEN SENSOR HEATER TEST"
+					if (self.ResultVal2 & 0x40) != 0:
+						AppendText += "|[INCOMPLETE]"
+				self.ResultArray += (AppendText,)
+
+				AppendText = ""
 				if (self.ResultVal1 & 0x80) != 0:
-					self.ResultArray["EGR SYSTEM"] = "TEST"
-				if (self.ResultVal2 & 0x80) != 0:
-					self.ResultArray["EGR SYSTEM"] += " [INCOMPLETE]"
+					AppendText = "EGR SYSTEM TEST"
+					if (self.ResultVal2 & 0x80) != 0:
+						AppendText += "|[INCOMPLETE]"
+				self.ResultArray += (AppendText,)
 
 			self.Result = self.ResultArray
 
@@ -582,19 +651,23 @@ class ELM327:
 # PID0103 Get the Fuel system status from the ECU.
 	def PID0103(self):
 		self.Result = self.STRING_NO_DATA
-		self.ResultArray = {}
+		self.ResultArray = ()
 
 		if '0103' in self.ValidPIDs:
 			self.Response = self.GetResponse(b'0103\r')
 			self.Response = self.PruneData(self.Response, 2)
 			if self.Response[:2] in self.FuelSystemStatus:
-				self.ResultArray["Fuel System 1"] = self.FuelSystemStatus[self.Response[:2]]
+				self.ResultArray += ("Fuel System 1",)
+				self.ResultArray += (self.FuelSystemStatus[self.Response[:2]],)
 			else:
-				self.ResultArray["Fuel System 1"] = STRING_INVALID
+				self.ResultArray += ("Fuel System 1",)
+				self.ResultArray += (STRING_INVALID,)
 			if self.Response[2:4] in self.FuelSystemStatus:
-				self.ResultArray["Fuel System 2"] = self.FuelSystemStatus[self.Response[2:4]]
+				self.ResultArray += ("Fuel System 2",)
+				self.ResultArray += (self.FuelSystemStatus[self.Response[2:4]],)
 			else:
-				self.ResultArray["Fuel System 2"] = STRING_INVALID
+				self.ResultArray += ("Fuel System 2",)
+				self.ResultArray += (STRING_INVALID,)
 
 			self.Result = self.ResultArray
 
@@ -804,16 +877,12 @@ class ELM327:
 # PID0113 Get the Oxygen sensors present (in 2 banks) from the ECU.
 	def PID0113(self):
 		self.Result = self.STRING_NO_DATA
-		self.ResultArray = {}
 
 		if '0113' in self.ValidPIDs:
 			self.Response = self.GetResponse(b'0113\r')
 			self.Response = self.PruneData(self.Response, 2)
 			self.ResultVal = int(self.Response[:2], 16)
-			self.ResultArray["BANK1"] = (self.ResultVal & 0x0F)
-			self.ResultArray["BANK2"] = (self.ResultVal & 0xF0) >> 4
-
-			self.Result = self.ResultArray
+			self.Result = ( "BANK1", (self.ResultVal & 0x0F), "BANK2", (self.ResultVal & 0xF0) >> 4)
 
 		return self.Result
 	PidFunctions["0113"] = PID0113
@@ -826,7 +895,7 @@ class ELM327:
 		if '0114' in self.ValidPIDs:
 			self.Response = self.GetResponse(b'0114\r')
 			self.Response = self.PruneData(self.Response, 2)
-			self.Result = { int(self.Response[:2], 16) / 200, (100 * int(self.Response[2:4], 16) / 128) - 100 }
+			self.Result = ( int(self.Response[:2], 16) / 200, (100 * int(self.Response[2:4], 16) / 128) - 100 )
 
 		return self.Result
 	PidFunctions["0114"] = PID0114
@@ -839,7 +908,7 @@ class ELM327:
 		if '0115' in self.ValidPIDs:
 			self.Response = self.GetResponse(b'0115\r')
 			self.Response = self.PruneData(self.Response, 2)
-			self.Result = { int(self.Response[:2], 16) / 200, (100 * int(self.Response[2:4], 16) / 128) - 100 }
+			self.Result = ( int(self.Response[:2], 16) / 200, (100 * int(self.Response[2:4], 16) / 128) - 100 )
 
 		return self.Result
 	PidFunctions["0115"] = PID0115
@@ -852,7 +921,7 @@ class ELM327:
 		if '0116' in self.ValidPIDs:
 			self.Response = self.GetResponse(b'0116\r')
 			self.Response = self.PruneData(self.Response, 2)
-			self.Result = { int(self.Response[:2], 16) / 200, (100 * int(self.Response[2:4], 16) / 128) - 100 }
+			self.Result = ( int(self.Response[:2], 16) / 200, (100 * int(self.Response[2:4], 16) / 128) - 100 )
 
 		return self.Result
 	PidFunctions["0116"] = PID0116
@@ -865,7 +934,7 @@ class ELM327:
 		if '0117' in self.ValidPIDs:
 			self.Response = self.GetResponse(b'0117\r')
 			self.Response = self.PruneData(self.Response, 2)
-			self.Result = { int(self.Response[:2], 16) / 200, (100 * int(self.Response[2:4], 16) / 128) - 100 }
+			self.Result = ( int(self.Response[:2], 16) / 200, (100 * int(self.Response[2:4], 16) / 128) - 100 )
 
 		return self.Result
 	PidFunctions["0117"] = PID0117
@@ -878,7 +947,7 @@ class ELM327:
 		if '0118' in self.ValidPIDs:
 			self.Response = self.GetResponse(b'0118\r')
 			self.Response = self.PruneData(self.Response, 2)
-			self.Result = { int(self.Response[:2], 16) / 200, (100 * int(self.Response[2:4], 16) / 128) - 100 }
+			self.Result = ( int(self.Response[:2], 16) / 200, (100 * int(self.Response[2:4], 16) / 128) - 100 )
 
 		return self.Result
 	PidFunctions["0118"] = PID0118
@@ -891,7 +960,7 @@ class ELM327:
 		if '0119' in self.ValidPIDs:
 			self.Response = self.GetResponse(b'0119\r')
 			self.Response = self.PruneData(self.Response, 2)
-			self.Result = { int(self.Response[:2], 16) / 200, (100 * int(self.Response[2:4], 16) / 128) - 100 }
+			self.Result = ( int(self.Response[:2], 16) / 200, (100 * int(self.Response[2:4], 16) / 128) - 100 )
 
 		return self.Result
 	PidFunctions["0119"] = PID0119
@@ -904,7 +973,7 @@ class ELM327:
 		if '011A' in self.ValidPIDs:
 			self.Response = self.GetResponse(b'011A\r')
 			self.Response = self.PruneData(self.Response, 2)
-			self.Result = { int(self.Response[:2], 16) / 200, (100 * int(self.Response[2:4], 16) / 128) - 100 }
+			self.Result = ( int(self.Response[:2], 16) / 200, (100 * int(self.Response[2:4], 16) / 128) - 100 )
 
 		return self.Result
 	PidFunctions["011A"] = PID011A
@@ -917,7 +986,7 @@ class ELM327:
 		if '011B' in self.ValidPIDs:
 			self.Response = self.GetResponse(b'011B\r')
 			self.Response = self.PruneData(self.Response, 2)
-			self.Result = { int(self.Response[:2], 16) / 200, (100 * int(self.Response[2:4], 16) / 128) - 100 }
+			self.Result = ( int(self.Response[:2], 16) / 200, (100 * int(self.Response[2:4], 16) / 128) - 100 )
 
 		return self.Result
 	PidFunctions["011B"] = PID011B
