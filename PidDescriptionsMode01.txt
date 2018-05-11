@@ -3,7 +3,7 @@
 02 ! Freeze DTC
 03 Fuel system status|{0[0]:s}: {0[1]:s} - {0[2]:s}: {0[3]:s}
 04 Calculated engine load|{0:3.2f}%
-05 Engine coolant temperature|{0:3d}°C
+05 Engine coolant temperature|{0:3.0f}°C
 06 Short term fuel trim—Bank 1|{0:3.2f}%
 07 Long term fuel trim—Bank 1|{0:3.2f}%
 08 Short term fuel trim—Bank 2|{0:3.2f}%
@@ -11,9 +11,9 @@
 0A % Fuel pressure (gauge pressure)|{0:5.0f} KPa
 0B Intake manifold absolute pressure|{0:5.0f} KPa
 0C Engine RPM|{0:5.0f} RPM
-0D Vehicle speed|{0:3d} Km/h
-0E Timing advance|{0:3.2f}° before TDC
-0F Intake air temperature|{0:3d}°C
+0D Vehicle speed|{0:3.0f} Km/h
+0E Timing advance|{0:3.2f}° BTDC
+0F Intake air temperature|{0:3.0f}°C
 10 MAF air flow rate|{0:5.0f} grams/sec
 11 Throttle position|{0:3.2f}%
 12 Commanded secondary air status|{0:s}
@@ -31,7 +31,7 @@
 1E Auxiliary input status|{0:s}
 1F Run time since engine start|{0:5.0f}
 20 ! PIDs supported [21 - 40]
-21 Distance traveled with malfunction indicator lamp (MIL) on|{0:5d} Km
+21 Distance traveled with malfunction indicator lamp (MIL) on|{0:5.0f} Km
 22 Fuel Rail Pressure (relative to manifold vacuum)
 23 Fuel Rail Gauge Pressure (diesel, or gasoline direct injection)
 24 Oxygen Sensor 1 AB: Fuel–Air Equivalence Ratio CD: Voltage
@@ -68,7 +68,7 @@
 43 Absolute load value
 44 Fuel–Air commanded equivalence ratio
 45 Relative throttle position
-46 Ambient air temperature|{0:3d}°C
+46 Ambient air temperature|{0:3.0f}°C
 47 Absolute throttle position B
 48 Absolute throttle position C
 49 Accelerator pedal position D
@@ -90,7 +90,7 @@
 59 Fuel rail absolute pressure
 5A Relative accelerator pedal position
 5B Hybrid battery pack remaining life
-5C Engine oil temperature|{0:3d}°C
+5C Engine oil temperature|{0:3.0f}°C
 5D Fuel injection timing
 5E Engine fuel rate
 5F Emission requirements to which vehicle is designed
@@ -101,11 +101,11 @@
 64 Engine percent torque data
 65 Auxiliary input / output supported
 66 Mass air flow sensor
-67 Engine coolant temperature|{0:3d}°C
+67 Engine coolant temperature|{0:3.0f}°C
 68 Intake air temperature sensor
 69 Commanded EGR and EGR Error
 6A Commanded Diesel intake air flow control and relative intake air flow position
-6B Exhaust gas recirculation temperature|{0:3d}°C
+6B Exhaust gas recirculation temperature|{0:3.0f}°C
 6C Commanded throttle actuator control and relative throttle position
 6D Fuel pressure control system
 6E Injection pressure control system
@@ -115,14 +115,14 @@
 72 Wastegate control
 73 Exhaust pressure
 74 Turbocharger RPM
-75 Turbocharger temperature|{0:3d}°C
-76 Turbocharger temperature|{0:3d}°C
-77 Charge air cooler temperature (CACT)|{0:3d}°C
-78 Exhaust Gas temperature (EGT) Bank 1|{0:3d}°C
-79 Exhaust Gas temperature (EGT) Bank 2|{0:3d}°C
+75 Turbocharger temperature|{0:3.0f}°C
+76 Turbocharger temperature|{0:3.0f}°C
+77 Charge air cooler temperature (CACT)|{0:3.0f}°C
+78 Exhaust Gas temperature (EGT) Bank 1|{0:3.0f}°C
+79 Exhaust Gas temperature (EGT) Bank 2|{0:3.0f}°C
 7A Diesel particulate filter (DPF)
 7B Diesel particulate filter (DPF)
-7C Diesel Particulate filter (DPF) temperature|{0:3d}°C
+7C Diesel Particulate filter (DPF) temperature|{0:3.0f}°C
 7D NOx NTE (Not-To-Exceed) control area status
 7E PM NTE (Not-To-Exceed) control area status
 7F Engine run time
@@ -130,7 +130,7 @@
 81 Engine run time for Auxiliary Emissions Control Device(AECD)
 82 Engine run time for Auxiliary Emissions Control Device(AECD)
 83 NOx sensor
-84 Manifold surface temperature|{0:3d}°C
+84 Manifold surface temperature|{0:3.0f}°C
 85 NOx reagent system
 86 Particulate matter (PM) sensor
 87 Intake manifold absolute pressure

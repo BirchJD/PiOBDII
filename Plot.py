@@ -14,11 +14,12 @@
 #/***************************************************************************/
 #/* Raspberry Pi ELM327 OBBII CAN BUS Diagnostic Software.                  */
 #/*                                                                         */
-#/* (C) Jason Birch 2018-05-01 V1.02                                        */
+#/* (C) Jason Birch 2018-05-09 V1.03                                        */
 #/*                                                                         */
 #/* Class: Plot                                                             */
 #/* Plot a history of selected value data over time.                        */
 #/***************************************************************************/
+
 
 
 import pygame
@@ -26,9 +27,10 @@ import Visual
 import Button
 
 
+
 class Plot(Visual.Visual):
-	def __init__(self, ThisSurface, Name, xPos, yPos, xLen, yLen, Text):
-		Visual.Visual.__init__(self, ThisSurface, Name, xPos, yPos, xLen, yLen, Text)
+	def __init__(self, ThisSurface, Name, PressType, xPos, yPos, xLen, yLen, Text):
+		Visual.Visual.__init__(self, ThisSurface, Name, PressType, xPos, yPos, xLen, yLen, Text)
 
 
 
@@ -37,10 +39,10 @@ class Plot(Visual.Visual):
 #/* actions and let the caller know if the plot area was touched.      */
 #/**********************************************************************/
 	def IsEvent(self, EventType, xPos, yPos, PointerButton, xOffset = 0, yOffset = 0):
-		self.Result = Visual.Visual.IsEvent(self, EventType, xPos, yPos, PointerButton, xOffset, yOffset)
-		if self.Result != False:
-			self.Result["BUTTON"] = self.Name
-		return self.Result
+		Result = Visual.Visual.IsEvent(self, EventType, xPos, yPos, PointerButton, xOffset, yOffset)
+		if Result != False:
+			Result["BUTTON"] = self.Name
+		return Result
 
 
 

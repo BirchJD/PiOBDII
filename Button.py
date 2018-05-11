@@ -14,20 +14,22 @@
 #/***************************************************************************/
 #/* Raspberry Pi ELM327 OBBII CAN BUS Diagnostic Software.                  */
 #/*                                                                         */
-#/* (C) Jason Birch 2018-05-01 V1.02                                        */
+#/* (C) Jason Birch 2018-05-09 V1.03                                        */
 #/*                                                                         */
 #/* Class: Button                                                           */
 #/* Display text data and receive touch events.                             */
 #/***************************************************************************/
 
 
+
 import pygame
 import Visual
 
 
+
 class Button(Visual.Visual):
-	def __init__(self, ThisSurface, Name, xPos, yPos, xLen, yLen, Text, Align = Visual.Visual.ALIGN_TEXT_CENTER):
-		Visual.Visual.__init__(self, ThisSurface, Name, xPos, yPos, xLen, yLen, Text, Align)
+	def __init__(self, ThisSurface, Name, PressType, xPos, yPos, xLen, yLen, Text, Align = Visual.ALIGN_TEXT_CENTER, DownText = ""):
+		Visual.Visual.__init__(self, ThisSurface, Name, PressType, xPos, yPos, xLen, yLen, Text, Align, DownText)
 
 
 
@@ -36,11 +38,14 @@ class Button(Visual.Visual):
 #/* actions and let the caller know if the button was touched.            */
 #/*************************************************************************/
 	def IsEvent(self, EventType, xPos, yPos, PointerButton, xOffset = 0, yOffset = 0):
-		self.Result = Visual.Visual.IsEvent(self, EventType, xPos, yPos, PointerButton, xOffset, yOffset)
+		Result = False
+
+		Result = Visual.Visual.IsEvent(self, EventType, xPos, yPos, PointerButton, xOffset, yOffset)
 		# Tell caller the name of the button that was touched.
-		if self.Result != False:
-			self.Result["BUTTON"] = self.Name
-		return self.Result
+		if Result != False:
+			Result["BUTTON"] = self.Name
+
+		return Result
 
 
 
@@ -48,8 +53,10 @@ class Button(Visual.Visual):
 #/* Draw this button on the provided surface. */
 #/*********************************************/
 	def Display(self, ThisSurface, xOffset = 0, yOffset = 0):
-		pygame.draw.rect(ThisSurface, self.ColourFill, (xOffset + self.xPos, yOffset + self.yPos, self.xLen, self.yLen), 0)
-		pygame.draw.rect(ThisSurface, self.ColourBorder, (xOffset + self.xPos, yOffset + self.yPos, self.xLen, self.yLen), 1)
-		# Draw any super class elements.
-		Visual.Visual.Display(self, ThisSurface, xOffset, yOffset)
+		if self.Visible == True:
+			# Display button background and border.
+			pygame.draw.rect(ThisSurface, self.ColourFill, (xOffset + self.xPos, yOffset + self.yPos, self.xLen, self.yLen), 0)
+			pygame.draw.rect(ThisSurface, self.ColourBorder, (xOffset + self.xPos, yOffset + self.yPos, self.xLen, self.yLen), 1)
+			# Draw any super class elements.
+			Visual.Visual.Display(self, ThisSurface, xOffset, yOffset)
 

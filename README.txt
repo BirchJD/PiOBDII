@@ -20,12 +20,13 @@
 #/* display each trouble code along with it's human readable description.   */
 #/*                                                                         */
 #/* In this initial version, the user must update the constant at the top   */
-#/* of the program code, SERIAL_PORT_NAME, with the serial port which is    */
+#/* of the EML327 class, SERIAL_PORT_NAME, with the serial port which is    */
 #/* to be used. Future verstions of the code should have a graphical        */
 #/* interface for configuration and provide more features than just reading */
 #/* trouble codes.                                                          */
 #/***************************************************************************/
 
+==============================================================================
 WARNING: Trouble codes and descriptions supplied with this source code have
 been obtained from various sources and reformatted for use in this
 application. The original data may be erronious and the reformatting
@@ -37,9 +38,71 @@ your own risk, no garentees or warrenties are provided with the software
 and data and absolutly no responsibility will be taken for and issues or
 damage caused during the installation or use of the software or data.
 
+Never use a vehicle on a public road with a device connected to the OBDII
+port or any other part of the CAN BUS. The CAN BUS is used to run the engine,
+any issues on the CAN BUS while the engine is running may effect the running
+of the engine or even damage the engine.
+==============================================================================
+
+
 
 Packages required to run the software:
 apt-get install python3
 apt-get install python3-serial
 apt-get install python3-pygame
+
+
+
+Packages for Bluetooth serial dongle:
+apt-get install bluez
+apt-get install bluetoothd
+
+
+
+EXAMPLE CONNECTING TO A BLUETOOTH ELM327 DONGLE FROM LINUX:
+service bluetooth start
+
+bluetoothctl
+power on
+agent on
+scan on
+scan off
+pair <dev>
+
+e.g. <dev>=00:1D:A5:F7:FF:0D
+
+rfcomm bind 0 <dev>
+rfcomm
+/dev/rfcomm0
+rfcomm release <dev>
+
+bluetoothctl
+remove <dev>
+agent off
+power off
+
+service bluetooth stop
+
+
+
+TODO
+====
+Drag scroll text.
+Min/Max values on meters.
+Auto scale or wrap text on gadgits.
+
+Save meter config.
+Numeric scales on gadgits.
+Config dialog.
+	Serial device select.
+	Vehicle select.
+	Font select.
+
+Freeze frame data.
+PDF summary.
+Print summary.
+Plot data points.
+	Select plot data types.
+	Save plot config.
+Test data for all data types.
 
