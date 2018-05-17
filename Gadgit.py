@@ -14,7 +14,7 @@
 #/***************************************************************************/
 #/* Raspberry Pi ELM327 OBBII CAN BUS Diagnostic Software.                  */
 #/*                                                                         */
-#/* (C) Jason Birch 2018-05-09 V1.03                                        */
+#/* (C) Jason Birch 2018-05-15 V1.04                                        */
 #/*                                                                         */
 #/* Class: Gadgit                                                           */
 #/* Display value data in various visual formats. Such as meter,            */
@@ -27,6 +27,7 @@ import math
 import pygame
 import pygame.color
 import pygame.freetype
+import ELM327
 import Visual
 import Button
 
@@ -47,10 +48,10 @@ class Gadgit(Visual.Visual):
 
 		# Buttons displayed on a gague.
 		self.Buttons = {
-			"SELECT" : Button.Button(self.ThisSurface, "SELECT", Visual.PRESS_DOWN, 0, 0, Visual.BUTTON_HEIGHT, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Select.png"),
-			"SWITCH" : Button.Button(self.ThisSurface, "SWITCH", Visual.PRESS_DOWN, (xLen - Visual.BUTTON_HEIGHT) * 2/6, 0, Visual.BUTTON_HEIGHT, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Switch.png"),
-			"DRAG" : Button.Button(self.ThisSurface, "DRAG", Visual.PRESS_DOWN, (xLen - Visual.BUTTON_HEIGHT) * 4/6, 0, Visual.BUTTON_HEIGHT, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Drag.png"),
-			"CLOSE" : Button.Button(self.ThisSurface, "CLOSE", Visual.PRESS_DOWN, xLen - Visual.BUTTON_HEIGHT, 0, Visual.BUTTON_HEIGHT, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Close.png"),
+			"SELECT" : Button.Button(self.ThisSurface, "SELECT", Visual.PRESS_DOWN, 0, 0, Visual.BUTTON_HEIGHT, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Select.png"),
+			"SWITCH" : Button.Button(self.ThisSurface, "SWITCH", Visual.PRESS_DOWN, (xLen - Visual.BUTTON_HEIGHT) * 2/6, 0, Visual.BUTTON_HEIGHT, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Switch.png"),
+			"DRAG" : Button.Button(self.ThisSurface, "DRAG", Visual.PRESS_DOWN, (xLen - Visual.BUTTON_HEIGHT) * 4/6, 0, Visual.BUTTON_HEIGHT, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Drag.png"),
+			"CLOSE" : Button.Button(self.ThisSurface, "CLOSE", Visual.PRESS_DOWN, xLen - Visual.BUTTON_HEIGHT, 0, Visual.BUTTON_HEIGHT, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Close.png"),
 		}
 
 		# Attributes applied to the various styles of gague.
@@ -121,7 +122,7 @@ class Gadgit(Visual.Visual):
 		self.Value = 0
 
 		# Appy the initial default style to the gague.
-		self.SetStyle()
+		self.SetStyle(self.Style)
 
 
 
@@ -150,7 +151,7 @@ class Gadgit(Visual.Visual):
 					self.Style += 1
 					if self.Style >= STYLE_END:
 						self.Style = 0
-					self.SetStyle()
+					self.SetStyle(self.Style)
 			elif EventType == Visual.EVENT_MOUSE_MOVE:
 				# If Drag button dragged, drag the gague to the new location.
 				if Result["BUTTON"] == "DRAG":
@@ -168,12 +169,33 @@ class Gadgit(Visual.Visual):
 
 
 
+#/***************************************************/
+#/* Return the style ID associated with this gague. */
+#/***************************************************/
+	def GetStyle(self):
+		return self.Style
+
+
+
 #/*******************************************/
 #/* Set the PID associated with this gague. */
 #/*******************************************/
 	def SetPID(self, PID, PidDescription):
 		self.PID = PID
 		self.PidDescription = PidDescription
+		ValueDefinition = self.PidDescription.split("|")
+		if len(ValueDefinition) > ELM327.FIELD_PID_MIN_1:
+			self.ValueMin = float(ValueDefinition[ELM327.FIELD_PID_MIN_1])
+		else:
+			self.ValueMin = 0
+		if len(ValueDefinition) > ELM327.FIELD_PID_MAX_1:
+			self.ValueMax = float(ValueDefinition[ELM327.FIELD_PID_MAX_1])
+		else:
+			self.ValueMax = 100
+		if len(ValueDefinition) > ELM327.FIELD_PID_HIGH_1:
+			self.ValueHigh = float(ValueDefinition[ELM327.FIELD_PID_HIGH_1])
+		else:
+			self.ValueHigh = 0
 
 
 
@@ -185,10 +207,22 @@ class Gadgit(Visual.Visual):
 
 
 
+#/*******************************************************/
+#/* Set the min, max and high data range of this gague. */
+#/*******************************************************/
+	def SetDataRange(self, ValueMin, ValueHigh, ValueMax):
+		self.ValueMin = float(ValueMin)
+		self.ValueHigh = float(ValueHigh)
+		self.ValueMax = float(ValueMax)
+
+
+
 #/********************************/
 #/* Set the style of this gague. */
 #/********************************/
-	def SetStyle(self):
+	def SetStyle(self, Style):
+		self.Style = Style
+
 		# Apply currently selected gadgit style.
 		self.xLen = self.StyleAttrib[self.Style]["WIDTH"]
 		self.yLen = self.StyleAttrib[self.Style]["HEIGHT"]
@@ -217,8 +251,16 @@ class Gadgit(Visual.Visual):
 #/* Draw this gadgit on the provided surface. */
 #/*********************************************/
 	def Display(self, ThisSurface, xOffset = 0, yOffset = 0):
+		try:
+			ThisValue = self.Value
+			if type(ThisValue) is tuple:
+				ThisValue = float(ThisValue[0])
+			else:
+				ThisValue = float(ThisValue)
+		except:
+			ThisValue = 0
 		# Calculate the ratio value to display on which ever style gague is displayed.
-		PointerRatio = (0.000001 + self.Value - self.ValueMin) / (self.ValueMax - self.ValueMin)
+		PointerRatio = (0.000001 + ThisValue - self.ValueMin) / (self.ValueMax - self.ValueMin)
 		PointerHighRatio = (0.000001 + self.ValueHigh - self.ValueMin) / (self.ValueMax - self.ValueMin)
 		# Erase the background.
 		pygame.draw.rect(ThisSurface, self.BackgroundColour, (self.xPos, self.yPos, self.xLen, self.yLen), 0)
@@ -234,27 +276,48 @@ class Gadgit(Visual.Visual):
 
 			# Draw gague background.
 			pygame.draw.circle(self.ThisSurface, self.FillColour, (OriginX, OriginY), Radius, 0)
-			pygame.draw.circle(self.ThisSurface, pygame.Color(0x00, 0x00, 0x00), (OriginX, OriginY), Radius, 2)
-			pygame.draw.circle(self.ThisSurface, pygame.Color(0x00, 0x00, 0x00), (OriginX, OriginY), 20, 0)
+			pygame.draw.circle(self.ThisSurface, self.ColourBlack, (OriginX, OriginY), Radius, 2)
+			pygame.draw.circle(self.ThisSurface, self.ColourBlack, (OriginX, OriginY), 20, 0)
+			pygame.draw.arc(self.ThisSurface, self.BarHighColour, (4*Visual.X_MARGIN + self.xPos, 4*Visual.Y_MARGIN + self.yPos, self.xLen - 8*Visual.X_MARGIN, self.xLen - 8*Visual.Y_MARGIN), -2*math.pi - 0.6*math.pi/2, 2*math.pi * -PointerHighRatio - math.pi/2, 2*Visual.X_MARGIN)
+			for Angle in range(0, 100, 10):
+				AngleX1 = (Radius - 10) * math.sin((math.pi / 180) * (-360 * Angle/100))
+				AngleY1 = (Radius - 10) * math.cos((math.pi / 180) * (-360 * Angle/100))
+				AngleX2 = (Radius - 30) * math.sin((math.pi / 180) * (-360 * Angle/100))
+				AngleY2 = (Radius - 30) * math.cos((math.pi / 180) * (-360 * Angle/100))
+				AngleX3 = (Radius - 70) * math.sin((math.pi / 180) * (-360 * Angle/100))
+				AngleY3 = (Radius - 70) * math.cos((math.pi / 180) * (-360 * Angle/100))
+				if Angle == 0:
+					TickWidth = 10
+				else:
+					TickWidth = 5
+				pygame.draw.line(self.ThisSurface, self.ColourBlack, (OriginX + AngleX1, OriginY + AngleY1), (OriginX + AngleX2, OriginY + AngleY2), TickWidth)
+				ThisText = "{:0.2f}".format(((self.ValueMax - self.ValueMin) / 100 * Angle) + self.ValueMin)
+				RenderText = Visual.Fonts["NormalFont"].render(ThisText, self.ColourBlack)
+				ThisSurface.blit(RenderText[0], (OriginX + AngleX3 - Visual.Fonts["NormalFont"].get_rect(ThisText)[2] / 2, OriginY + AngleY3))
+
 
 			# Draw gague values.
 			TextLabels = self.PidDescription.split("|")
 
-			ThisText = TextLabels[0]
-			TextHeight = self.LargeFont.get_rect(ThisText)[3]
-			TextXPos = self.xPos + (self.xLen - self.LargeFont.get_rect(ThisText)[2]) / 2
-			TextYPos = self.yPos + self.yLen - Visual.Y_MARGIN - TextHeight
-			RenderText = self.LargeFont.render(ThisText, self.ColourText)
-			ThisSurface.blit(RenderText[0], (TextXPos, TextYPos))
+			DisplayText = self.LayoutText(TextLabels[ELM327.FIELD_PID_DESCRIPTION], 2, self.xLen - 4 * Visual.X_MARGIN, Visual.Fonts["LargeFont"])
+			DisplayTextOffset = 0
+			for DisplayTextLine in DisplayText.split('\n'):
+				ThisText = DisplayTextLine
+				TextHeight = Visual.Fonts["LargeFont"].get_rect(ThisText)[3]
+				TextXPos = self.xPos + (self.xLen - Visual.Fonts["LargeFont"].get_rect(ThisText)[2]) / 2
+				TextYPos = DisplayTextOffset + self.yPos + self.yLen - Visual.Y_MARGIN - 2*(TextHeight + Visual.Y_MARGIN)
+				RenderText = Visual.Fonts["LargeFont"].render(ThisText, self.ColourText)
+				ThisSurface.blit(RenderText[0], (TextXPos, TextYPos))
+				DisplayTextOffset += TextHeight + Visual.Y_MARGIN
 
-			if len(TextLabels) > 1:
-				try:
-					ThisText = TextLabels[1].format(self.Value)
-				except Exception as Catch:
-					print(str(Catch) + " : " + str(TextLabels[1]) + " [" + str(self.Value) + "]")
-				TextXPos = self.xPos + (self.xLen - self.MassiveFont.get_rect(ThisText)[2]) / 2
-				TextYPos = self.yPos + (self.yLen - self.MassiveFont.get_rect(ThisText)[3]) * 3 / 5
-				RenderText = self.MassiveFont.render(ThisText, self.ColourValue)
+			if len(TextLabels) > 1 and TextLabels[ELM327.FIELD_PID_FORMAT_1].find("f}") > -1:
+				ThisFormat = TextLabels[ELM327.FIELD_PID_FORMAT_1]
+				if ThisFormat.find('[') > -1:
+					ThisFormat = ThisFormat[:ThisFormat.find('[')] + ThisFormat[ThisFormat.find(']')+1:]
+				ThisText = ThisFormat.format(ThisValue)
+				TextXPos = self.xPos + (self.xLen - Visual.Fonts["MassiveFont"].get_rect(ThisText)[2]) / 2
+				TextYPos = self.yPos + (self.yLen - Visual.Fonts["MassiveFont"].get_rect(ThisText)[3]) * 3 / 5
+				RenderText = Visual.Fonts["MassiveFont"].render(ThisText, self.ColourValue)
 				ThisSurface.blit(RenderText[0], (TextXPos, TextYPos))
 
 			# Draw gague pointer.
@@ -273,25 +336,32 @@ class Gadgit(Visual.Visual):
 			PointerYPos = Visual.Y_MARGIN + self.yPos + int((self.yLen - 2 * Visual.Y_MARGIN) - (self.yLen - 2 * Visual.Y_MARGIN) * PointerRatio)
 			PointerYHighPos = Visual.Y_MARGIN + self.yPos + int((self.yLen - 2 * Visual.Y_MARGIN) - (self.yLen - 2 * Visual.Y_MARGIN) * PointerHighRatio)
 			pygame.draw.rect(ThisSurface, self.BarColour, (Visual.X_MARGIN + self.xPos, PointerYPos, self.xLen - 2 * Visual.X_MARGIN, self.yPos + self.yLen - Visual.Y_MARGIN - PointerYPos), 0)
-			if self.Value >= self.ValueHigh:
+			if ThisValue >= self.ValueHigh:
 				pygame.draw.rect(ThisSurface, self.BarHighColour, (Visual.X_MARGIN + self.xPos, PointerYPos, self.xLen - 2 * Visual.X_MARGIN, PointerYHighPos - PointerYPos), 0)
 			pygame.draw.line(self.ThisSurface, self.PointerColour, (Visual.X_MARGIN + self.xPos, PointerYPos), (self.xPos + self.xLen - Visual.X_MARGIN - self.PointerWidth / 2, PointerYPos), self.PointerWidth)
 
 			# Draw gague values.
 			TextLabels = self.PidDescription.split("|")
 
-			ThisText = TextLabels[0]
-			TextHeight = self.LargeFont.get_rect(ThisText)[3]
-			TextXPos = self.xPos + self.xLen - Visual.X_MARGIN - TextHeight
-			TextYPos = self.yPos + (self.yLen - self.LargeFont.get_rect(ThisText)[2]) / 2
-			RenderText = self.LargeFont.render(ThisText, self.ColourText, rotation = 90)
-			ThisSurface.blit(RenderText[0], (TextXPos, TextYPos))
+			DisplayText = self.LayoutText(TextLabels[ELM327.FIELD_PID_DESCRIPTION], 2, self.yLen - 4 * Visual.Y_MARGIN, Visual.Fonts["LargeFont"])
+			DisplayTextOffset = 0
+			for DisplayTextLine in DisplayText.split('\n'):
+				ThisText = DisplayTextLine
+				TextHeight = Visual.Fonts["LargeFont"].get_rect(ThisText)[3]
+				TextXPos = DisplayTextOffset + self.xPos + self.xLen - 2*(TextHeight + Visual.X_MARGIN)
+				TextYPos = self.yPos + (self.yLen - Visual.Fonts["LargeFont"].get_rect(ThisText)[2]) / 2
+				RenderText = Visual.Fonts["LargeFont"].render(ThisText, self.ColourText, rotation = 90)
+				ThisSurface.blit(RenderText[0], (TextXPos, TextYPos))
+				DisplayTextOffset += TextHeight + Visual.Y_MARGIN
 
-			if len(TextLabels) > 1:
-				ThisText = TextLabels[1].format(self.Value)
-				TextXPos = self.xPos + (self.xLen - self.HugeFont.get_rect(ThisText)[3]) / 5
-				TextYPos = self.yPos + (self.yLen - self.HugeFont.get_rect(ThisText)[2]) / 2
-				RenderText = self.HugeFont.render(ThisText, self.ColourValue, rotation = 90)
+			if len(TextLabels) > 1 and TextLabels[ELM327.FIELD_PID_FORMAT_1].find("f}") > -1:
+				ThisFormat = TextLabels[ELM327.FIELD_PID_FORMAT_1]
+				if ThisFormat.find('[') > -1:
+					ThisFormat = ThisFormat[:ThisFormat.find('[')] + ThisFormat[ThisFormat.find(']')+1:]
+				ThisText = ThisFormat.format(ThisValue)
+				TextXPos = self.xPos + (self.xLen - Visual.Fonts["HugeFont"].get_rect(ThisText)[3]) / 5
+				TextYPos = self.yPos + (self.yLen - Visual.Fonts["HugeFont"].get_rect(ThisText)[2]) / 2
+				RenderText = Visual.Fonts["HugeFont"].render(ThisText, self.ColourValue, rotation = 90)
 				ThisSurface.blit(RenderText[0], (TextXPos, TextYPos))
 
 		# Draw the gague as a horizontal bar gague.
@@ -302,25 +372,32 @@ class Gadgit(Visual.Visual):
 			PointerXPos = Visual.X_MARGIN + self.xPos + int((self.xLen - 2 * Visual.X_MARGIN) * PointerRatio)
 			PointerHighXPos = Visual.X_MARGIN + self.xPos + int((self.xLen - 2 * Visual.X_MARGIN) * PointerHighRatio)
 			pygame.draw.rect(ThisSurface, self.BarColour, (Visual.X_MARGIN + self.xPos, Visual.Y_MARGIN + self.yPos, PointerXPos - Visual.X_MARGIN - self.xPos, self.yLen - 2 * Visual.Y_MARGIN), 0)
-			if self.Value >= self.ValueHigh:
+			if ThisValue >= self.ValueHigh:
 				pygame.draw.rect(ThisSurface, self.BarHighColour, (PointerXPos, Visual.Y_MARGIN + self.yPos, PointerHighXPos - PointerXPos, self.yLen - 2 * Visual.Y_MARGIN), 0)
 			pygame.draw.line(self.ThisSurface, self.PointerColour, (PointerXPos, self.yPos + Visual.Y_MARGIN), (PointerXPos, self.yPos + self.yLen - Visual.Y_MARGIN - self.PointerWidth / 2), self.PointerWidth)
 
 			# Draw gague values.
 			TextLabels = self.PidDescription.split("|")
 
-			ThisText = TextLabels[0]
-			TextHeight = self.LargeFont.get_rect(ThisText)[3]
-			TextXPos = self.xPos + (self.xLen - self.LargeFont.get_rect(ThisText)[2]) / 2
-			TextYPos = self.yPos + self.yLen - Visual.Y_MARGIN - TextHeight
-			RenderText = self.LargeFont.render(ThisText, self.ColourText)
-			ThisSurface.blit(RenderText[0], (TextXPos, TextYPos))
+			DisplayText = self.LayoutText(TextLabels[ELM327.FIELD_PID_DESCRIPTION], 2, self.xLen - 4 * Visual.X_MARGIN, Visual.Fonts["LargeFont"])
+			DisplayTextOffset = 0
+			for DisplayTextLine in DisplayText.split('\n'):
+				ThisText = DisplayTextLine
+				TextHeight = Visual.Fonts["LargeFont"].get_rect(ThisText)[3]
+				TextXPos = self.xPos + (self.xLen - Visual.Fonts["LargeFont"].get_rect(ThisText)[2]) / 2
+				TextYPos = DisplayTextOffset + self.yPos + self.yLen - 2*(TextHeight + Visual.Y_MARGIN)
+				RenderText = Visual.Fonts["LargeFont"].render(ThisText, self.ColourText)
+				ThisSurface.blit(RenderText[0], (TextXPos, TextYPos))
+				DisplayTextOffset += TextHeight + Visual.X_MARGIN
 
-			if len(TextLabels) > 1:
-				ThisText = TextLabels[1].format(self.Value)
-				TextXPos = self.xPos + (self.xLen - self.HugeFont.get_rect(ThisText)[2]) / 2
-				TextYPos = self.yPos + (self.yLen - self.HugeFont.get_rect(ThisText)[3]) / 5
-				RenderText = self.HugeFont.render(ThisText, self.ColourValue)
+			if len(TextLabels) > 1 and TextLabels[ELM327.FIELD_PID_FORMAT_1].find("f}") > -1:
+				ThisFormat = TextLabels[ELM327.FIELD_PID_FORMAT_1]
+				if ThisFormat.find('[') > -1:
+					ThisFormat = ThisFormat[:ThisFormat.find('[')] + ThisFormat[ThisFormat.find(']')+1:]
+				ThisText = ThisFormat.format(ThisValue)
+				TextXPos = self.xPos + (self.xLen - Visual.Fonts["HugeFont"].get_rect(ThisText)[2]) / 2
+				TextYPos = self.yPos + (self.yLen - Visual.Fonts["HugeFont"].get_rect(ThisText)[3]) / 5
+				RenderText = Visual.Fonts["HugeFont"].render(ThisText, self.ColourValue)
 				ThisSurface.blit(RenderText[0], (TextXPos, TextYPos))
 
 		# Draw the gague as text only.
@@ -330,19 +407,37 @@ class Gadgit(Visual.Visual):
 			# Draw gague values.
 			TextLabels = self.PidDescription.split("|")
 
-			ThisText = TextLabels[0]
-			TextHeight = self.LargeFont.get_rect(ThisText)[3]
-			TextXPos = self.xPos + (self.xLen - self.LargeFont.get_rect(ThisText)[2]) / 2
-			TextYPos = self.yPos + self.yLen - Visual.Y_MARGIN - TextHeight
-			RenderText = self.LargeFont.render(ThisText, self.ColourText)
-			ThisSurface.blit(RenderText[0], (TextXPos, TextYPos))
+			DisplayText = self.LayoutText(TextLabels[ELM327.FIELD_PID_DESCRIPTION], 2, self.xLen - 4 * Visual.X_MARGIN, Visual.Fonts["LargeFont"])
+			DisplayTextOffset = 0
+			for DisplayTextLine in DisplayText.split('\n'):
+				ThisText = DisplayTextLine
+				TextHeight = Visual.Fonts["LargeFont"].get_rect(ThisText)[3]
+				TextXPos = self.xPos + (self.xLen - Visual.Fonts["LargeFont"].get_rect(ThisText)[2]) / 2
+				TextYPos = DisplayTextOffset + self.yPos + self.yLen - Visual.Y_MARGIN - 2*(TextHeight + Visual.Y_MARGIN)
+				RenderText = Visual.Fonts["LargeFont"].render(ThisText, self.ColourText)
+				ThisSurface.blit(RenderText[0], (TextXPos, TextYPos))
+				DisplayTextOffset += TextHeight + Visual.Y_MARGIN
 
 			if len(TextLabels) > 1:
-				ThisText = TextLabels[1].format(self.Value)
-				TextXPos = self.xPos + (self.xLen - self.HugeFont.get_rect(ThisText)[2]) / 2
-				TextYPos = self.yPos + (self.yLen - self.HugeFont.get_rect(ThisText)[3]) / 5
-				RenderText = self.HugeFont.render(ThisText, self.ColourValue)
+				if TextLabels[ELM327.FIELD_PID_FORMAT_1].find("f}") > -1:
+					ThisFormat = TextLabels[ELM327.FIELD_PID_FORMAT_1]
+					if ThisFormat.find('[') > -1:
+						ThisFormat = ThisFormat[:ThisFormat.find('[')] + ThisFormat[ThisFormat.find(']')+1:]
+					ThisText = ThisFormat.format(ThisValue)
+				else:
+					ThisText = str(self.Value)
+				TextXPos = self.xPos + (self.xLen - Visual.Fonts["HugeFont"].get_rect(ThisText)[2]) / 2
+				TextYPos = self.yPos + (self.yLen - Visual.Fonts["HugeFont"].get_rect(ThisText)[3]) / 5
+				RenderText = Visual.Fonts["HugeFont"].render(ThisText, self.ColourValue)
 				ThisSurface.blit(RenderText[0], (TextXPos, TextYPos))
+
+		# Display the PID number in top left.
+		ThisText = self.PID
+		TextHeight = Visual.Fonts["SmallFont"].get_rect(ThisText)[3]
+		TextXPos = self.xPos + Visual.X_MARGIN
+		TextYPos = self.yPos + Visual.Y_MARGIN
+		RenderText = Visual.Fonts["SmallFont"].render(ThisText, self.ColourBlack)
+		ThisSurface.blit(RenderText[0], (TextXPos, TextYPos))
 
 		# Display all buttons on the gadgit.
 		for ThisButton in self.Buttons:

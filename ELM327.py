@@ -14,7 +14,7 @@
 #/***************************************************************************/
 #/* Raspberry Pi ELM327 OBBII CAN BUS Diagnostic Software.                  */
 #/*                                                                         */
-#/* (C) Jason Birch 2018-05-09 V1.03                                        */
+#/* (C) Jason Birch 2018-05-15 V1.04                                        */
 #/*                                                                         */
 #/* Class: ELM327                                                           */
 #/* Handle communications with an ELM327 device, communicating with the     */
@@ -33,8 +33,7 @@ CONNECT_ELM327_FAIL = 1
 CONNECT_CAN_BUS_FAIL = 2
 
 # Serial port constants.
-SERIAL_PORT_NAME = "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_A800eaG9-if00-port0"
-# SERIAL_PORT_NAME = "/dev/rfcomm0"
+SERIAL_PORT_NAME = None
 SERIAL_PORT_BAUD = 38400
 SERIAL_PORT_TIME_OUT = 7
 
@@ -49,6 +48,18 @@ STRING_TODO = ":TODO:"
 STRING_INVALID = "[INVALID]"
 STRING_NO_DESCRIPTION = "[NO DESCRIPTION]"
 
+# Data fields.
+FIELD_PID_DESCRIPTION = 0
+FIELD_PID_FORMAT_1 = 1
+FIELD_PID_MIN_1 = 2
+FIELD_PID_MAX_1 = 3
+FIELD_PID_HIGH_1 = 4
+FIELD_PID_FORMAT_2 = 5
+FIELD_PID_MIN_2 = 6
+FIELD_PID_MAX_2 = 7
+FIELD_PID_HIGH_2 = 8
+
+
 
 # PID Numbers and their function pointers implemented in this class.
 PidFunctions = {}
@@ -59,125 +70,135 @@ class ELM327:
 	def __init__(self):
 		self.InitResult = ""
 		self.ValidPIDs = {}
+		self.ValidFreezePIDs = {}
 		self.MilOn = False
+		self.FreezeFrameCount = 0
 
 #  /*************************************************/
 # /* Read Vehicle OBD Standards lookup table data. */
 #/*************************************************/
 		self.VehicleObdStandards = {}
 		try:
-			with open("VehicleObdStandards.txt") as ThisFile:
+			with open("DATA/VehicleObdStandards.txt") as ThisFile:
 				for ThisLine in ThisFile:
 					Digit, Code = ThisLine.partition(" ")[::2]
 					self.VehicleObdStandards[Digit] = Code.strip()
 		except Exception as Catch:
-			print(STRING_ERROR + " VehicleObdStandards.txt : " + str(Catch))
-			self.InitResult += "FAILED TO READ FILE: VehicleObdStandards.txt\n"
+			print(STRING_ERROR + " DATA/VehicleObdStandards.txt : " + str(Catch))
+			self.InitResult += "FAILED TO READ FILE: DATA/VehicleObdStandards.txt\n"
 
 #  /**********************************************************/
 # /* Read Commanded Secondary Air Status lookup table data. */
 #/**********************************************************/
 		self.CommandedSecondaryAirStatus = {}
 		try:
-			with open("CommandedSecondaryAirStatus.txt") as ThisFile:
+			with open("DATA/CommandedSecondaryAirStatus.txt") as ThisFile:
 				for ThisLine in ThisFile:
 					Digit, Code = ThisLine.partition(" ")[::2]
 					self.CommandedSecondaryAirStatus[Digit] = Code.strip()
 		except Exception as Catch:
-			print(STRING_ERROR + " CommandedSecondaryAirStatus.txt : " + str(Catch))
-			self.InitResult += "FAILED TO READ FILE: CommandedSecondaryAirStatus.txt\n"
+			print(STRING_ERROR + " DATA/CommandedSecondaryAirStatus.txt : " + str(Catch))
+			self.InitResult += "FAILED TO READ FILE: DATA/CommandedSecondaryAirStatus.txt\n"
 
 #  /**********************************************/
 # /* Read Fuel System Status lookup table data. */
 #/**********************************************/
 		self.FuelSystemStatus = {}
 		try:
-			with open("FuelSystemStatus.txt") as ThisFile:
+			with open("DATA/FuelSystemStatus.txt") as ThisFile:
 				for ThisLine in ThisFile:
 					Digit, Code = ThisLine.partition(" ")[::2]
 					self.FuelSystemStatus[Digit] = Code.strip()
 		except Exception as Catch:
-			print(STRING_ERROR + " FuelSystemStatus.txt : " + str(Catch))
-			self.InitResult += "FAILED TO READ FILE: FuelSystemStatus.txt\n"
+			print(STRING_ERROR + " DATA/FuelSystemStatus.txt : " + str(Catch))
+			self.InitResult += "FAILED TO READ FILE: DATA/FuelSystemStatus.txt\n"
 
 #  /**********************************************/
 # /* Read OBDII Trouble Code lookup table data. */
 #/**********************************************/
 		self.TroubleCodePrefix = {}
 		try:
-			with open("TroubleCodePrefix.txt") as ThisFile:
+			with open("DATA/TroubleCodePrefix.txt") as ThisFile:
 				for ThisLine in ThisFile:
 					Digit, Code = ThisLine.partition(" ")[::2]
 					self.TroubleCodePrefix[Digit] = Code.strip()
 		except Exception as Catch:
-			print(STRING_ERROR + " TroubleCodePrefix.txt : " + str(Catch))
-			self.InitResult += "FAILED TO READ FILE: TroubleCodePrefix.txt\n"
+			print(STRING_ERROR + " DATA/TroubleCodePrefix.txt : " + str(Catch))
+			self.InitResult += "FAILED TO READ FILE: DATA/TroubleCodePrefix.txt\n"
 
 #  /**********************************************************/
 # /* Read OBDII Trouble Code Description lookup table data. */
 #/**********************************************************/
-		self.TroubleCodeDescriptions = {}
-		# Load the ISO/SAE Trouble Code Descriptions.
-		try:
-			with open("TroubleCodes-ISO-SAE.txt") as ThisFile:
-				for ThisLine in ThisFile:
-					Code, Description = ThisLine.partition(" ")[::2]
-					self.TroubleCodeDescriptions[Code] = Description.strip()
-		except Exception as Catch:
-			print(STRING_ERROR + " TroubleCodes-ISO-SAE.txt : " + str(Catch))
-			self.InitResult += "FAILED TO READ FILE: TroubleCodes-ISO-SAE.txt\n"
-
-		# Load the Vehicle/Manufacturer Trouble Code Descriptions.
-		try:
-			with open("TroubleCodes-R53_Cooper_S.txt") as ThisFile:
-				for ThisLine in ThisFile:
-					Code, Description = ThisLine.partition(" ")[::2]
-					self.TroubleCodeDescriptions[Code] = Description.strip()
-		except Exception as Catch:
-			print(STRING_ERROR + " TroubleCodes-R53_Cooper_S.txt : " + str(Catch))
-			self.InitResult += "FAILED TO READ FILE: TroubleCodes-R53_Cooper_S.txt\n"
+		self.LoadVehicle("DATA/TroubleCodes-R53_Cooper_S.txt")
 
 #  /***************************************************/
 # /* Read Mode 01 PID description lookup table data. */
 #/***************************************************/
 		self.PidDescriptionsMode01 = {}
 		try:
-			with open("PidDescriptionsMode01.txt") as ThisFile:
+			with open("DATA/PidDescriptionsMode01.txt") as ThisFile:
 				for ThisLine in ThisFile:
 					Digit, Code = ThisLine.partition(" ")[::2]
 					self.PidDescriptionsMode01[Digit] = Code.strip()
 		except:
-			self.InitResult += "FAILED TO READ FILE: PidDescriptionsMode01.txt\n"
+			self.InitResult += "FAILED TO READ FILE: DATA/PidDescriptionsMode01.txt\n"
 
 #  /***************************************************/
 # /* Read Mode 05 PID description lookup table data. */
 #/***************************************************/
 		self.PidDescriptionsMode05 = {}
 		try:
-			with open("PidDescriptionsMode05.txt") as ThisFile:
+			with open("DATA/PidDescriptionsMode05.txt") as ThisFile:
 				for ThisLine in ThisFile:
 					Digit, Code = ThisLine.partition(" ")[::2]
 					self.PidDescriptionsMode05[Digit] = Code.strip()
 		except:
-			self.InitResult += "FAILED TO READ FILE: PidDescriptionsMode05.txt\n"
+			self.InitResult += "FAILED TO READ FILE: DATA/PidDescriptionsMode05.txt\n"
 
 #  /***************************************************/
 # /* Read Mode 09 PID description lookup table data. */
 #/***************************************************/
 		self.PidDescriptionsMode09 = {}
 		try:
-			with open("PidDescriptionsMode09.txt") as ThisFile:
+			with open("DATA/PidDescriptionsMode09.txt") as ThisFile:
 				for ThisLine in ThisFile:
 					Digit, Code = ThisLine.partition(" ")[::2]
 					self.PidDescriptionsMode09[Digit] = Code.strip()
 		except:
-			self.InitResult += "FAILED TO READ FILE: PidDescriptionsMode09.txt\n"
+			self.InitResult += "FAILED TO READ FILE: DATA/PidDescriptionsMode09.txt\n"
 
 
 
 	def __del__(self):
 		# Close the ELM327 device after use.
 		self.Close()
+
+
+
+#/******************************************************/
+#/* Load the trouble codes for the configured vehicle. */
+#/******************************************************/
+	def LoadVehicle(self, VehicleFile):
+		self.TroubleCodeDescriptions = {}
+		# Load the ISO/SAE Trouble Code Descriptions.
+		try:
+			with open("DATA/TroubleCodes-ISO-SAE.txt") as ThisFile:
+				for ThisLine in ThisFile:
+					Code, Description = ThisLine.partition(" ")[::2]
+					self.TroubleCodeDescriptions[Code] = Description.strip()
+		except Exception as Catch:
+			print(STRING_ERROR + " DATA/TroubleCodes-ISO-SAE.txt : " + str(Catch))
+			self.InitResult += "FAILED TO READ FILE: DATA/TroubleCodes-ISO-SAE.txt\n"
+
+		# Load the Vehicle/Manufacturer Trouble Code Descriptions.
+		try:
+			with open(VehicleFile) as ThisFile:
+				for ThisLine in ThisFile:
+					Code, Description = ThisLine.partition(" ")[::2]
+					self.TroubleCodeDescriptions[Code] = Description.strip()
+		except Exception as Catch:
+			print(STRING_ERROR + " " + VehicleFile + " : " + str(Catch))
+			self.InitResult += "FAILED TO READ FILE: " + VehicleFile + "\n"
 
 
 
@@ -217,6 +238,14 @@ class ELM327:
 #/******************************/
 	def GetMilOn(self):
 		return self.MilOn
+
+
+
+#/*******************************/
+#/* Get the freeze frame count. */
+#/*******************************/
+	def GetFreezeFrameCount(self):
+		return self.FreezeFrameCount
 
 
 
@@ -276,6 +305,7 @@ class ELM327:
 #/********************************************************/
 	def Connect(self):
 		Result = CONNECT_SUCCESS
+		self.InitResult = ""
 
 #  /****************************************************************/
 # /* Open the required serial port which the ELM327 device is on. */
@@ -294,19 +324,26 @@ class ELM327:
 				self.InitResult += "FAILED: AT E0 (Set Echo Off)\n"
 
 			# Don't print space characters, for faster communications.
-			Response = self.GetResponse(b'AT S0\r')
-			if Response != 'OK\n':
-				self.InitResult += "FAILED: AT S0 (Set Space Characters Off)\n"
+			if self.InitResult == "":
+				Response = self.GetResponse(b'AT S0\r')
+				if Response != 'OK\n':
+					self.InitResult += "FAILED: AT S0 (Set Space Characters Off)\n"
 
 			# Set CAN communication protocol to ISO 9141-2 or auto detect on fail.
-			Response = self.GetResponse(b'AT SP A3\r')
-			if Response != 'OK\n':
-				self.InitResult += "FAILED: AT SP A3 (Set Protocol ISO 9141-2 / Auto)\n"
+			if self.InitResult == "":
+				Response = self.GetResponse(b'AT SP A3\r')
+				if Response != 'OK\n':
+					self.InitResult += "FAILED: AT SP A3 (Set Protocol ISO 9141-2 / Auto)\n"
 
 			# Set CAN Baud to high speed.
-			Response = self.GetResponse(b'AT IB 10\r')
-			if Response != 'OK\n':
-				self.InitResult += "FAILED: AT IB 10 (Set High Speed CAN BUS)\n"
+			if self.InitResult == "":
+				Response = self.GetResponse(b'AT IB 10\r')
+				if Response != 'OK\n':
+					self.InitResult += "FAILED: AT IB 10 (Set High Speed CAN BUS)\n"
+
+			if self.InitResult != "":
+				Result = CONNECT_ELM327_FAIL
+				self.InitResult += "FAILED TO INITIALIZE ELM327 DEVICE.\n"
 		except:
 			Result = CONNECT_ELM327_FAIL
 			self.InitResult += "FAILED TO INITIALIZE ELM327 DEVICE.\n"
@@ -325,6 +362,7 @@ class ELM327:
 				ResultVal1 = int(Response[:2], 16)
 				if (ResultVal1 & 0x80) != 0:
 					self.MilOn = True
+				self.FreezeFrameCount = ResultVal1 & 0x7F
 
 		if Result == CONNECT_SUCCESS:
 			# Manually add standard PIDs supported, prefix with '!', don't show as user selectable option.
@@ -365,18 +403,43 @@ class ELM327:
 #/***************************************************************/
 #/* Return a list of PIDs the currently connected ECU supports. */
 #/***************************************************************/
-	def GetValidPIDs(self):
-		return self.ValidPIDs
+	def GetValidPIDs(self, FreezeIndex = -1):
+		Result = self.ValidPIDs
+
+		if FreezeIndex != -1:
+			# Get Mode 02 PID support [01 -> 20].
+			self.PID0200(FreezeIndex)
+			# If Mode 02 PID 20 is supported, get Mode 02 PID support [21 -> 40].
+			if '0120' in self.ValidFreezePIDs:
+				self.PID0220(FreezeIndex)
+			# If Mode 02 PID 40 is supported, get Mode 02 PID support [41 -> 60].
+			if '0140' in self.ValidFreezePIDs:
+				self.PID0240(FreezeIndex)
+			# If Mode 02 PID 60 is supported, get Mode 02 PID support [61 -> 80].
+			if '0160' in self.ValidFreezePIDs:
+				self.PID0260(FreezeIndex)
+			# If Mode 02 PID 80 is supported, get Mode 02 PID support [81 -> A0].
+			if '0180' in self.ValidFreezePIDs:
+				self.PID0280(FreezeIndex)
+			# If Mode 02 PID A0 is supported, get Mode 02 PID support [A1 -> C0].
+			if '01A0' in self.ValidFreezePIDs:
+				self.PID02A0(FreezeIndex)
+			# If Mode 02 PID C0 is supported, get Mode 02 PID support [C1 -> E0].
+			if '01C0' in self.ValidFreezePIDs:
+				self.PID02C0(FreezeIndex)
+			Result = self.ValidFreezePIDs
+
+		return Result
 
 
 
 #/**********************************************************************/
 #/* Get and return the information for the specified PID from the ECU. */
 #/**********************************************************************/
-	def DoPID(self, PID):
+	def DoPID(self, PID, FreezeIndex = -1):
 		try:
 			if PID in PidFunctions:
-				Result = PidFunctions[PID](self)
+				Result = PidFunctions[PID](self, FreezeIndex)
 			else:
 				Result = STRING_NOT_IMPLEMENTED
 		except Exception as Catch:
@@ -400,7 +463,7 @@ class ELM327:
 		self.ELM327.write(Data)
 		Response = ""
 		ReadChar = 1
-		while ReadChar != b'>' and ReadChar != 0:
+		while ReadChar != b'>' and ReadChar != b'' and ReadChar != 0:
 			ReadChar = self.ELM327.read()
 			if ReadChar != b'>':
 				Response += str(ReadChar, 'utf-8')
@@ -412,17 +475,24 @@ class ELM327:
 #/* Resolve a bitmaped supported PIDs response from the ECU and   */
 #/* add them to the list of currently supported PIDs for the ECU. */
 #/*****************************************************************/
-	def ResolvePidData(self, PidMode, PidData, PidStart, PidDescriptions):
+	def ResolvePidData(self, PidMode, PidData, PidStart, PidDescriptions, FreezeIndex = -1):
 		PidStartValue = int(PidStart, 16)
 		PidValue = int(PidData, 16)
 		Count = PidStartValue + (len(PidData) * 4)
 		while PidValue > 0:
 			if PidValue % 2 > 0:
 				PidIndex = '%2.2X' % Count
-				if PidIndex in PidDescriptions:
-					self.ValidPIDs[PidMode + PidIndex] = PidDescriptions[PidIndex]
+				if PidMode == '02':
+					ThisFreezeIndex = "{:02d}".format(FreezeIndex)
+					if PidIndex in PidDescriptions:
+						self.ValidFreezePIDs[PidMode + PidIndex + ThisFreezeIndex] = PidDescriptions[PidIndex]
+					else:
+						self.ValidFreezePIDs[PidMode + PidIndex + ThisFreezeIndex] = STRING_NO_DESCRIPTION
 				else:
-					self.ValidPIDs[PidMode + PidIndex] = STRING_NO_DESCRIPTION
+					if PidIndex in PidDescriptions:
+						self.ValidPIDs[PidMode + PidIndex] = PidDescriptions[PidIndex]
+					else:
+						self.ValidPIDs[PidMode + PidIndex] = STRING_NO_DESCRIPTION
 			PidValue = int(PidValue / 2)
 			Count -= 1
 
@@ -483,7 +553,7 @@ class ELM327:
 #/**************************************/
 
 # PID0100 Supported PIDs for Mode 1 [01 -> 20].
-	def PID0100(self):
+	def PID0100(self, FreezeIndex = -1):
 		Response = self.GetResponse(b'0100\r')
 		Response = self.PruneData(Response, 2)
 		self.ResolvePidData('01', Response, '00', self.PidDescriptionsMode01)
@@ -491,13 +561,17 @@ class ELM327:
 
 
 # PID0101 Get Monitor status since DTCs cleared from the ECU.
-	def PID0101(self):
+	def PID0101(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 		ResultArray = ()
 
 		if '0101' in self.ValidPIDs:
-			Response = self.GetResponse(b'0101\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0101\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0201" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 
 			ResultVal1 = int(Response[:2], 16)
 			if (ResultVal1 & 0x80) != 0:
@@ -506,7 +580,8 @@ class ELM327:
 			else:
 				self.MilOn = False
 				ResultArray += ("MIL:OFF",)
-			ResultArray += ("STORED TROUBLE CODE COUNT|" + str(ResultVal1 & 0x7F),)
+			self.FreezeFrameCount = ResultVal1 & 0x7F
+			ResultArray += ("STORED TROUBLE CODE COUNT|" + str(self.FreezeFrameCount),)
 
 			ResultVal1 = int(Response[2:4], 16)
 
@@ -658,22 +733,43 @@ class ELM327:
 
 		return Result
 	PidFunctions["0101"] = PID0101
+	PidFunctions["0201"] = PID0101
 
 
 # PID0102 Freeze DTC.
-	def PID0102(self):
-		return self.GetResponse(b'0102\r')
+	def PID0102(self, FreezeIndex = -1):
+		Result = STRING_NO_DATA
+
+		if FreezeIndex == -1:
+			Response = self.GetResponse(b'0102\r')
+			Response = self.PruneData(Response, 2)
+		else:
+			Response = self.GetResponse(bytearray("0202" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+			Response = self.PruneData(Response, 3)
+
+		TroubleCodes = self.DataToTroubleCodes(Response)
+		if TroubleCodes[0] in self.TroubleCodeDescriptions:
+			Result = TroubleCodes[0] + " " + self.TroubleCodeDescriptions[TroubleCodes[0]]
+		else:
+			Result = STRING_NO_DESCRIPTION
+
+		return Result
 	PidFunctions["0102"] = PID0102
+	PidFunctions["0202"] = PID0102
 
 
 # PID0103 Get the Fuel system status from the ECU.
-	def PID0103(self):
+	def PID0103(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 		ResultArray = ()
 
 		if '0103' in self.ValidPIDs:
-			Response = self.GetResponse(b'0103\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0103\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0203" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			if Response[:2] in self.FuelSystemStatus:
 				ResultArray += ("Fuel System 1",)
 				ResultArray += (self.FuelSystemStatus[Response[:2]],)
@@ -691,198 +787,273 @@ class ELM327:
 
 		return Result
 	PidFunctions["0103"] = PID0103
+	PidFunctions["0203"] = PID0103
 
 
 # PID0104 Get the current Calculated Engine Load from the ECU.
-	def PID0104(self):
+	def PID0104(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0104' in self.ValidPIDs:
-			Response = self.GetResponse(b'0104\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0104\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0204" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = 100 * int(Response, 16) / 255
 
 		return Result
 	PidFunctions["0104"] = PID0104
+	PidFunctions["0204"] = PID0104
 
 
 
 # PID0105 Get the current Engine Coolant Temperature from the ECU.
-	def PID0105(self):
+	def PID0105(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0105' in self.ValidPIDs:
-			Response = self.GetResponse(b'0105\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0105\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0205" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = int(Response, 16) - 40
 
 		return Result
 	PidFunctions["0105"] = PID0105
+	PidFunctions["0205"] = PID0105
 
 
 # PID0106 Get the current Short Term Fuel Trim Bank1 from the ECU.
-	def PID0106(self):
+	def PID0106(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0106' in self.ValidPIDs:
-			Response = self.GetResponse(b'0106\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0106\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0206" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = (100 * int(Response, 16) / 128) - 100
 
 		return Result
 	PidFunctions["0106"] = PID0106
+	PidFunctions["0206"] = PID0106
 
 
 # PID0107 Get the Long term fuel trim—Bank from the ECU.
-	def PID0107(self):
+	def PID0107(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0107' in self.ValidPIDs:
-			Response = self.GetResponse(b'0107\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0107\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0207" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = (100 * int(Response, 16) / 128) - 100
 
 		return Result
 	PidFunctions["0107"] = PID0107
+	PidFunctions["0207"] = PID0107
 
 
 # PID0108 Get the Short term fuel trim—Bank 2 from the ECU.
-	def PID0108(self):
+	def PID0108(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0108' in self.ValidPIDs:
-			Response = self.GetResponse(b'0108\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0108\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0208" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = (100 * int(Response, 16) / 128) - 100
 
 		return Result
 	PidFunctions["0108"] = PID0108
+	PidFunctions["0208"] = PID0108
 
 
 # PID0109 Get the Long term fuel trim—Bank 2 from the ECU.
-	def PID0109(self):
+	def PID0109(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0109' in self.ValidPIDs:
-			Response = self.GetResponse(b'0109\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0109\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0209" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = (100 * int(Response, 16) / 128) - 100
 
 		return Result
 	PidFunctions["0109"] = PID0109
+	PidFunctions["0209"] = PID0109
 
 
 # PID010A Get the Fuel pressure (gauge pressure) from the ECU.
-	def PID010A(self):
+	def PID010A(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '010A' in self.ValidPIDs:
-			Response = self.GetResponse(b'010A\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'010A\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("020A" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = 3 * int(Response, 16)
 
 		return Result
 	PidFunctions["010A"] = PID010A
+	PidFunctions["020A"] = PID010A
 
 
 # PID010B Get the Intake manifold absolute pressure from the ECU.
-	def PID010B(self):
+	def PID010B(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '010B' in self.ValidPIDs:
-			Response = self.GetResponse(b'010B\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'010B\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("020B" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = int(Response, 16)
 
 		return Result
 	PidFunctions["010B"] = PID010B
+	PidFunctions["020B"] = PID010B
 
 
 # PID010C Get the current Engine RPM from the ECU.
-	def PID010C(self):
+	def PID010C(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '010C' in self.ValidPIDs:
-			Response = self.GetResponse(b'010C\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'010C\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("020C" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = (256 * int(Response[:2], 16) + int(Response[2:4], 16)) / 4
 
 		return Result
 	PidFunctions["010C"] = PID010C
+	PidFunctions["020C"] = PID010C
 
 
 # PID010D Get the Vehicle speed from the ECU.
-	def PID010D(self):
+	def PID010D(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '010D' in self.ValidPIDs:
-			Response = self.GetResponse(b'010D\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'010D\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("020D" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = int(Response[:2], 16)
 
 		return Result
 	PidFunctions["010D"] = PID010D
+	PidFunctions["020D"] = PID010D
 
 
 # PID010E Get the Timing advance from the ECU.
-	def PID010E(self):
+	def PID010E(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '010E' in self.ValidPIDs:
-			Response = self.GetResponse(b'010E\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'010E\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("020E" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = (int(Response[:2], 16) / 2) - 64
 
 		return Result
 	PidFunctions["010E"] = PID010E
+	PidFunctions["020E"] = PID010E
 
 
 # PID010F Get the Intake air temperature from the ECU.
-	def PID010F(self):
+	def PID010F(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '010F' in self.ValidPIDs:
-			Response = self.GetResponse(b'010F\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'010F\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("020F" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = int(Response[:2], 16) - 40
 
 		return Result
 	PidFunctions["010F"] = PID010F
+	PidFunctions["020F"] = PID010F
 
 
 # PID0110 Get the MAF air flow rate from the ECU.
-	def PID0110(self):
+	def PID0110(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0110' in self.ValidPIDs:
-			Response = self.GetResponse(b'0110\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0110\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0210" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = (256 * int(Response[:2], 16) + int(Response[2:4], 16)) / 100
 
 		return Result
 	PidFunctions["0110"] = PID0110
+	PidFunctions["0210"] = PID0110
 
 
 # PID0111 Get the Throttle position from the ECU.
-	def PID0111(self):
+	def PID0111(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0111' in self.ValidPIDs:
-			Response = self.GetResponse(b'0111\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0111\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0211" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = 100 * int(Response[:2], 16) / 255
 
 		return Result
 	PidFunctions["0111"] = PID0111
+	PidFunctions["0211"] = PID0111
 
 
 # PID0112 Get the Commanded secondary air status from the ECU.
-	def PID0112(self):
+	def PID0112(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0112' in self.ValidPIDs:
-			Response = self.GetResponse(b'0112\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0112\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0212" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			if Response in self.CommandedSecondaryAirStatus:
 				Result = self.CommandedSecondaryAirStatus[Response]
 			else:
@@ -890,133 +1061,183 @@ class ELM327:
 
 		return Result
 	PidFunctions["0112"] = PID0112
+	PidFunctions["0212"] = PID0112
 
 
 # PID0113 Get the Oxygen sensors present (in 2 banks) from the ECU.
-	def PID0113(self):
+	def PID0113(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0113' in self.ValidPIDs:
-			Response = self.GetResponse(b'0113\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0113\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0213" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			ResultVal = int(Response[:2], 16)
 			Result = ( "BANK1", (ResultVal & 0x0F), "BANK2", (ResultVal & 0xF0) >> 4)
 
 		return Result
 	PidFunctions["0113"] = PID0113
+	PidFunctions["0213"] = PID0113
 
 
 # PID0114 Get the current Oxygen Sensor 1 Voltage & Short Term Fuel Trim from the ECU.
-	def PID0114(self):
+	def PID0114(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0114' in self.ValidPIDs:
-			Response = self.GetResponse(b'0114\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0114\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0214" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = ( int(Response[:2], 16) / 200, (100 * int(Response[2:4], 16) / 128) - 100 )
 
 		return Result
 	PidFunctions["0114"] = PID0114
+	PidFunctions["0214"] = PID0114
 
 
 # PID0115 Get the current Oxygen Sensor 2 Voltage & Short Term Fuel Trim from the ECU.
-	def PID0115(self):
+	def PID0115(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0115' in self.ValidPIDs:
-			Response = self.GetResponse(b'0115\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0115\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0215" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = ( int(Response[:2], 16) / 200, (100 * int(Response[2:4], 16) / 128) - 100 )
 
 		return Result
 	PidFunctions["0115"] = PID0115
+	PidFunctions["0215"] = PID0115
 
 
 # PID0116 Get the current Oxygen Sensor 3 Voltage & Short Term Fuel Trim from the ECU.
-	def PID0116(self):
+	def PID0116(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0116' in self.ValidPIDs:
-			Response = self.GetResponse(b'0116\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0116\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0216" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = ( int(Response[:2], 16) / 200, (100 * int(Response[2:4], 16) / 128) - 100 )
 
 		return Result
 	PidFunctions["0116"] = PID0116
+	PidFunctions["0216"] = PID0116
 
 
 # PID0117 Get the current Oxygen Sensor 4 Voltage & Short Term Fuel Trim from the ECU.
-	def PID0117(self):
+	def PID0117(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0117' in self.ValidPIDs:
-			Response = self.GetResponse(b'0117\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0117\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0217" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = ( int(Response[:2], 16) / 200, (100 * int(Response[2:4], 16) / 128) - 100 )
 
 		return Result
 	PidFunctions["0117"] = PID0117
+	PidFunctions["0217"] = PID0117
 
 
 # PID0118 Get the current Oxygen Sensor 5 Voltage & Short Term Fuel Trim from the ECU.
-	def PID0118(self):
+	def PID0118(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0118' in self.ValidPIDs:
-			Response = self.GetResponse(b'0118\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0118\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0218" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = ( int(Response[:2], 16) / 200, (100 * int(Response[2:4], 16) / 128) - 100 )
 
 		return Result
 	PidFunctions["0118"] = PID0118
+	PidFunctions["0218"] = PID0118
 
 
 # PID0119 Get the current Oxygen Sensor 6 Voltage & Short Term Fuel Trim from the ECU.
-	def PID0119(self):
+	def PID0119(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0119' in self.ValidPIDs:
-			Response = self.GetResponse(b'0119\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0119\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0219" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = ( int(Response[:2], 16) / 200, (100 * int(Response[2:4], 16) / 128) - 100 )
 
 		return Result
 	PidFunctions["0119"] = PID0119
+	PidFunctions["0219"] = PID0119
 
 
 # PID011A Get the current Oxygen Sensor 7 Voltage & Short Term Fuel Trim from the ECU.
-	def PID011A(self):
+	def PID011A(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '011A' in self.ValidPIDs:
-			Response = self.GetResponse(b'011A\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'011A\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("021A" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = ( int(Response[:2], 16) / 200, (100 * int(Response[2:4], 16) / 128) - 100 )
 
 		return Result
 	PidFunctions["011A"] = PID011A
+	PidFunctions["021A"] = PID011A
 
 
 # PID011B Get the current Oxygen Sensor 8 Voltage & Short Term Fuel Trim from the ECU.
-	def PID011B(self):
+	def PID011B(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '011B' in self.ValidPIDs:
-			Response = self.GetResponse(b'011B\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'011B\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("021B" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = ( int(Response[:2], 16) / 200, (100 * int(Response[2:4], 16) / 128) - 100 )
 
 		return Result
 	PidFunctions["011B"] = PID011B
+	PidFunctions["021B"] = PID011B
 
 
 # PID011C Get the OBD standards this vehicle conforms to from the ECU.
-	def PID011C(self):
+	def PID011C(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '011C' in self.ValidPIDs:
-			Response = self.GetResponse(b'011C\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'011C\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("021C" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			if Response in self.VehicleObdStandards:
 				Result = self.VehicleObdStandards[Response]
 			else:
@@ -1024,6 +1245,7 @@ class ELM327:
 
 		return Result
 	PidFunctions["011C"] = PID011C
+	PidFunctions["021C"] = PID011C
 
 
 # PID011D
@@ -1032,7 +1254,7 @@ class ELM327:
 
 
 # PID0120 Supported PIDs for Mode 1 [21 -> 40].
-	def PID0120(self):
+	def PID0120(self, FreezeIndex = -1):
 		Response = self.GetResponse(b'0120\r')
 		Response = self.PruneData(Response, 2)
 		self.ResolvePidData('01', Response, '20', self.PidDescriptionsMode01)
@@ -1040,16 +1262,21 @@ class ELM327:
 
 
 # PID0121 Get the Distance traveled with malfunction indicator lamp (MIL) on from the ECU.
-	def PID0121(self):
+	def PID0121(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0121' in self.ValidPIDs:
-			Response = self.GetResponse(b'0121\r')
-			Response = self.PruneData(Response, 2)
+			if FreezeIndex == -1:
+				Response = self.GetResponse(b'0121\r')
+				Response = self.PruneData(Response, 2)
+			else:
+				Response = self.GetResponse(bytearray("0221" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+				Response = self.PruneData(Response, 3)
 			Result = 256 * int(Response[:2], 16) + int(Response[2:4], 16)
 
 		return Result
 	PidFunctions["0121"] = PID0121
+	PidFunctions["0221"] = PID0121
 
 
 # PID0122
@@ -1085,7 +1312,7 @@ class ELM327:
 
 
 # PID0140 Supported PIDs for Mode 1 [41 -> 60].
-	def PID0140(self):
+	def PID0140(self, FreezeIndex = -1):
 		Response = self.GetResponse(b'0140\r')
 		Response = self.PruneData(Response, 2)
 		self.ResolvePidData('01', Response, '40', self.PidDescriptionsMode01)
@@ -1126,7 +1353,7 @@ class ELM327:
 
 
 # PID0160 Supported PIDs for Mode 1 [61 -> 80].
-	def PID0160(self):
+	def PID0160(self, FreezeIndex = -1):
 		Response = self.GetResponse(b'0160\r')
 		Response = self.PruneData(Response, 2)
 		self.ResolvePidData('01', Response, '60', self.PidDescriptionsMode01)
@@ -1167,7 +1394,7 @@ class ELM327:
 
 
 # PID0180 Supported PIDs for Mode 1 [81 -> A0].
-	def PID0180(self):
+	def PID0180(self, FreezeIndex = -1):
 		Response = self.GetResponse(b'0180\r')
 		Response = self.PruneData(Response, 2)
 		self.ResolvePidData('01', Response, '80', self.PidDescriptionsMode01)
@@ -1208,7 +1435,7 @@ class ELM327:
 
 
 # PID01A0 Supported PIDs for Mode 1 [A1 -> C0].
-	def PID01A0(self):
+	def PID01A0(self, FreezeIndex = -1):
 		Response = self.GetResponse(b'01A0\r')
 		Response = self.PruneData(Response, 2)
 		self.ResolvePidData('01', Response, 'A0', self.PidDescriptionsMode01)
@@ -1249,7 +1476,7 @@ class ELM327:
 
 
 # PID01C0 Supported PIDs for Mode 1 [C1 -> E0].
-	def PID01C0(self):
+	def PID01C0(self, FreezeIndex = -1):
 		Response = self.GetResponse(b'01C0\r')
 		Response = self.PruneData(Response, 2)
 		self.ResolvePidData('01', Response, 'C0', self.PidDescriptionsMode01)
@@ -1293,13 +1520,68 @@ class ELM327:
 #/* ODBII MODE 02 - Show freeze frame data. */
 #/*******************************************/
 
+# PID0200 Supported PIDs for Mode 2 [01 -> 20].
+	def PID0200(self, FreezeIndex = -1):
+		Response = self.GetResponse(bytearray("0200" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+		Response = self.PruneData(Response, 3)
+		self.ResolvePidData('02', Response, '00', self.PidDescriptionsMode01, FreezeIndex)
+	PidFunctions["0200"] = PID0200
+
+
+# PID0220 Supported PIDs for Mode 2 [21 -> 40].
+	def PID0220(self, FreezeIndex = -1):
+		Response = self.GetResponse(bytearray("0220" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+		Response = self.PruneData(Response, 3)
+		self.ResolvePidData('02', Response, '20', self.PidDescriptionsMode01, FreezeIndex)
+	PidFunctions["0220"] = PID0220
+
+
+# PID0240 Supported PIDs for Mode 2 [41 -> 60].
+	def PID0240(self, FreezeIndex = -1):
+		Response = self.GetResponse(bytearray("0240" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+		Response = self.PruneData(Response, 3)
+		self.ResolvePidData('02', Response, '40', self.PidDescriptionsMode01, FreezeIndex)
+	PidFunctions["0240"] = PID0240
+
+
+# PID0260 Supported PIDs for Mode 2 [61 -> 80].
+	def PID0260(self, FreezeIndex = -1):
+		Response = self.GetResponse(bytearray("0260" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+		Response = self.PruneData(Response, 3)
+		self.ResolvePidData('02', Response, '60', self.PidDescriptionsMode01, FreezeIndex)
+	PidFunctions["0260"] = PID0260
+
+
+# PID0280 Supported PIDs for Mode 2 [81 -> A0].
+	def PID0280(self, FreezeIndex = -1):
+		Response = self.GetResponse(bytearray("0280" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+		Response = self.PruneData(Response, 3)
+		self.ResolvePidData('02', Response, '80', self.PidDescriptionsMode01, FreezeIndex)
+	PidFunctions["0280"] = PID0280
+
+
+# PID02A0 Supported PIDs for Mode 2 [A1 -> C0].
+	def PID02A0(self, FreezeIndex = -1):
+		Response = self.GetResponse(bytearray("02A0" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+		Response = self.PruneData(Response, 3)
+		self.ResolvePidData('02', Response, 'A0', self.PidDescriptionsMode01, FreezeIndex)
+	PidFunctions["02A0"] = PID02A0
+
+
+# PID02C0 Supported PIDs for Mode 2 [C1 -> E0].
+	def PID02C0(self, FreezeIndex = -1):
+		Response = self.GetResponse(bytearray("02C0" + "{:02d}".format(FreezeIndex) + "\r", 'UTF-8'))
+		Response = self.PruneData(Response, 3)
+		self.ResolvePidData('02', Response, 'C0', self.PidDescriptionsMode01)
+	PidFunctions["02C0"] = PID02C0
+
 
 #/*********************************************************/
 #/* ODBII MODE 03 - Show stored diagnostic trouble codes. */
 #/*********************************************************/
 
 # PID03 Get the Stored Trouble Codes from the ECU.
-	def PID03(self):
+	def PID03(self, FreezeIndex = -1):
 		return self.GetTroubleCodeData(b'03')
 	PidFunctions["03"] = PID03
 
@@ -1309,7 +1591,7 @@ class ELM327:
 #/*********************************************************************/
 
 # PID04 Erase all Pending/Stored Trouble Codes and Data from the ECU.
-	def PID04(self):
+	def PID04(self, FreezeIndex = -1):
 		return self.GetResponse(b'04\r')
 	PidFunctions["04"] = PID04
 
@@ -1319,7 +1601,7 @@ class ELM327:
 #/**************************************************************************/
 
 # PID050100 Supported PIDs for Mode 0501 [01 -> 20].
-	def PID050100(self):
+	def PID050100(self, FreezeIndex = -1):
 		Response = self.GetResponse(b'050100\r')
 		Response = self.PruneData(Response, 3)
 		self.ResolvePidData('05', Response, '00', self.PidDescriptionsMode05)
@@ -1371,7 +1653,7 @@ class ELM327:
 #/*******************************************************************/
 
 # Get the Pending Trouble Codes from the ECU.
-	def PID07(self):
+	def PID07(self, FreezeIndex = -1):
 		return self.GetTroubleCodeData(b'07')
 	PidFunctions["07"] = PID07
 
@@ -1386,20 +1668,20 @@ class ELM327:
 #/************************************************/
 
 # PID0900 Supported PIDs for Mode 09 [01 -> 20].
-	def PID0900(self):
+	def PID0900(self, FreezeIndex = -1):
 		Response = self.GetResponse(b'0900\r')
 		Response = self.PruneData(Response, 3)
 		self.ResolvePidData('09', Response, '00', self.PidDescriptionsMode09)
 	PidFunctions["0900"] = PID0900
 
 
-	def PID0901(self):
+	def PID0901(self, FreezeIndex = -1):
 		return STRING_TODO
 	PidFunctions["0901"] = PID0901
 
 
 # PID0901 Get the VIN Message Count in PID 02.
-	def PID0901(self):
+	def PID0901(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0901' in self.ValidPIDs:
@@ -1412,7 +1694,7 @@ class ELM327:
 
 
 # PID0902 Get the current Vehicle VIN Number from the ECU.
-	def PID0902(self):
+	def PID0902(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0902' in self.ValidPIDs:
@@ -1424,13 +1706,13 @@ class ELM327:
 	PidFunctions["0902"] = PID0902
 
 
-	def PID0903(self):
+	def PID0903(self, FreezeIndex = -1):
 		return STRING_TODO
 	PidFunctions["0903"] = PID0903
 
 
 # PID0903 Get the Calibration ID message count for PID 04.
-	def PID0903(self):
+	def PID0903(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0903' in self.ValidPIDs:
@@ -1443,7 +1725,7 @@ class ELM327:
 
 
 # PID0904 Get the current Calibration ID from the ECU.
-	def PID0904(self):
+	def PID0904(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0904' in self.ValidPIDs:
@@ -1455,13 +1737,13 @@ class ELM327:
 	PidFunctions["0904"] = PID0904
 
 
-	def PID0905(self):
+	def PID0905(self, FreezeIndex = -1):
 		return STRING_TODO
 	PidFunctions["0905"] = PID0905
 
 
 # PID0905 Get Calibration verification numbers (CVN) message count for PID 06.
-	def PID0905(self):
+	def PID0905(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0905' in self.ValidPIDs:
@@ -1474,7 +1756,7 @@ class ELM327:
 
 
 # PID0906 Get the current Calibration Verification Numbers from the ECU.
-	def PID0906(self):
+	def PID0906(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0906' in self.ValidPIDs:
@@ -1485,23 +1767,23 @@ class ELM327:
 	PidFunctions["0906"] = PID0906
 
 
-	def PID0907(self):
+	def PID0907(self, FreezeIndex = -1):
 		return STRING_TODO
 	PidFunctions["0907"] = PID0907
 
 
-	def PID0908(self):
+	def PID0908(self, FreezeIndex = -1):
 		return STRING_TODO
 	PidFunctions["0908"] = PID0908
 
 
-	def PID0909(self):
+	def PID0909(self, FreezeIndex = -1):
 		return STRING_TODO
 	PidFunctions["0909"] = PID0909
 
 
 # PID0907 Get In-use performance tracking message count for PID 08 and 0B.
-	def PID0907(self):
+	def PID0907(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0907' in self.ValidPIDs:
@@ -1517,7 +1799,7 @@ class ELM327:
 
 
 # PID0909 Get ECU name message count for PID 0A.
-	def PID0909(self):
+	def PID0909(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '0909' in self.ValidPIDs:
@@ -1530,7 +1812,7 @@ class ELM327:
 
 
 # PID090A Get the current ECU Name from the ECU.
-	def PID090A(self):
+	def PID090A(self, FreezeIndex = -1):
 		Result = STRING_NO_DATA
 
 		if '090A' in self.ValidPIDs:

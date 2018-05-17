@@ -14,7 +14,7 @@
 #/***************************************************************************/
 #/* Raspberry Pi ELM327 OBBII CAN BUS Diagnostic Software.                  */
 #/*                                                                         */
-#/* (C) Jason Birch 2018-05-09 V1.03                                        */
+#/* (C) Jason Birch 2018-05-15 V1.04                                        */
 #/*                                                                         */
 #/* Class: Button                                                           */
 #/* Display text data and receive touch events.                             */

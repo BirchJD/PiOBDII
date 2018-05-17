@@ -14,7 +14,7 @@
 #/***************************************************************************/
 #/* Raspberry Pi ELM327 OBBII CAN BUS Diagnostic Software.                  */
 #/*                                                                         */
-#/* (C) Jason Birch 2018-05-09 V1.03                                        */
+#/* (C) Jason Birch 2018-05-15 V1.04                                        */
 #/*                                                                         */
 #/* Class: Visual                                                           */
 #/* Super class, common features of classes which are visual.               */
@@ -25,6 +25,7 @@
 import pygame
 import pygame.color
 import pygame.freetype
+import ELM327
 
 
 
@@ -44,18 +45,32 @@ PRESS_TOGGLE = 3
 ALIGN_TEXT_LEFT = 1
 ALIGN_TEXT_CENTER = 2
 ALIGN_TEXT_RIGHT = 3
+ALIGN_TEXT_TOP = 4
 
 # Default margin around elements on the sub classed visual object.
 X_MARGIN = 8
 Y_MARGIN = 8
 
 # Default button height (and usually width).
-# BUTTON_HEIGHT = 40
 BUTTON_HEIGHT = 55
 
 
 # Which visual items are placed on top of which, from bottom to top.
 VisualZOrder = []
+
+# Fonts for visuals.
+Fonts = {
+	"SmallFontSize" : None,
+	"SmallFont" : None,
+	"NormalFontSize" : None,
+	"NormalFont" : None,
+	"LargeFontSize" : None,
+	"LargeFont" : None,
+	"MassiveFontSize" : None,
+	"MassiveFont" : None,
+	"HugeFontSize" : None,
+	"HugeFont" : None,
+}
 
 
 
@@ -73,7 +88,7 @@ class Visual:
 		self.yPos = yPos
 		self.xLen = xLen
 		self.yLen = yLen
-		self.Text = Text
+		self.SetText(Text)
 		self.DownText = DownText
 		self.Align = Align
 		self.Visible = True
@@ -95,36 +110,45 @@ class Visual:
 			(self.DownImageXLen, self.DownImageYLen) = pygame.Surface.get_size(self.DownImage)
 
 		# Default colours to use on the visual object.
+		self.ColourBlack = pygame.Color(0x00, 0x00, 0x00)
+		self.ColourGrey = pygame.Color(0x5F, 0x5F, 0x5F)
 		self.ColourText = pygame.Color(0x00, 0x00, 0x00)
+		self.ColourValueText = pygame.Color(0xAF, 0xAF, 0x00)
 		self.ColourBorder = pygame.Color(0x7F, 0x7F, 0x7F)
 		self.ColourFillDown = pygame.Color(0x7F, 0xFF, 0xFF)
 		self.ColourFillUp = pygame.Color(0x7F, 0x7F, 0xFF)
 		self.ColourFill = self.ColourFillUp
 		self.ColourDialog = pygame.Color(0x3F, 0xFF, 0x3F)
+		self.ColourConfigDialog = pygame.Color(0x3F, 0x3F, 0xFF)
 
 		# Get the dimensions of the surface to draw the visual object onto.
 		(self.DisplayXLen, self.DisplayYLen) = pygame.Surface.get_size(self.ThisSurface)
-#		if self.DisplayXLen == 800:
-#			BUTTON_HEIGHT = 40
-#		else:
-#			BUTTON_HEIGHT = 55
 
+
+
+#/********************************************/
+#/* Configure the required application font. */
+#/********************************************/
+	def SetFont(self, FontName):
 		# Find a fixed width font, so text can be tabulated.
-		self.FontName = "freemono"
-		FontFile = pygame.freetype.match_font(self.FontName, True)
+		FontFile = pygame.freetype.match_font(FontName, True)
 		if FontFile == None:
-			for self.FontName in pygame.freetype.get_fonts():
-				if self.FontName.find("mono") > -1:
-					FontFile = pygame.freetype.match_font(self.FontName, True)
+			for FontName in pygame.freetype.get_fonts():
+				if FontName.find("mono") > -1:
+					FontFile = pygame.freetype.match_font(FontName, True)
 					break
-
 		# Configure default font sizes to be used on the visual object.
-		self.LargeFontSize = int(self.DisplayXLen / 50)
-		self.LargeFont = pygame.freetype.Font(FontFile, self.LargeFontSize)
-		self.MassiveFontSize = int(self.DisplayXLen / 26)
-		self.MassiveFont = pygame.freetype.Font(FontFile, self.MassiveFontSize)
-		self.HugeFontSize = int(self.DisplayXLen / 20)
-		self.HugeFont = pygame.freetype.Font(FontFile, self.HugeFontSize)
+		Fonts["SmallFontSize"] = int(self.DisplayXLen / 80)
+		Fonts["SmallFont"] = pygame.freetype.Font(FontFile, Fonts["SmallFontSize"])
+		Fonts["NormalFontSize"] = int(self.DisplayXLen / 60)
+		Fonts["NormalFont"] = pygame.freetype.Font(FontFile, Fonts["NormalFontSize"])
+		Fonts["NormalFont"].style = pygame.freetype.STYLE_STRONG
+		Fonts["LargeFontSize"] = int(self.DisplayXLen / 50)
+		Fonts["LargeFont"] = pygame.freetype.Font(FontFile, Fonts["LargeFontSize"])
+		Fonts["MassiveFontSize"] = int(self.DisplayXLen / 26)
+		Fonts["MassiveFont"] = pygame.freetype.Font(FontFile, Fonts["MassiveFontSize"])
+		Fonts["HugeFontSize"] = int(self.DisplayXLen / 23)
+		Fonts["HugeFont"] = pygame.freetype.Font(FontFile, Fonts["HugeFontSize"])
 
 
 
@@ -133,6 +157,30 @@ class Visual:
 #/**************************************************************/
 	def GetName(self):
 		return self.Name
+
+
+
+#/**************************************************************/
+#/* Return the xPos of the sub classed visual object instance. */
+#/**************************************************************/
+	def GetXPos(self):
+		return self.xPos
+
+
+
+#/**************************************************************/
+#/* Return the yPos of the sub classed visual object instance. */
+#/**************************************************************/
+	def GetYPos(self):
+		return self.yPos
+
+
+
+#/**************************************************************/
+#/* Return the Text of the sub classed visual object instance. */
+#/**************************************************************/
+	def GetText(self):
+		return self.Text
 
 
 
@@ -190,6 +238,27 @@ class Visual:
 
 
 
+#/***************************************************/
+#/* Format text to be displayed within a set width, */
+#/* over a specified number of lines.               */
+#/***************************************************/
+	def LayoutText(self, DisplayText, DisplayLines, DisplayXLen, DisplayFont):
+		Result = ""
+
+		ResultLine = ""
+		for Word in DisplayText.split(' '):
+			if DisplayFont.get_rect(ResultLine + Word)[2] > DisplayXLen:
+				Result += ResultLine[:len(ResultLine) - 1] + "\n"
+				ResultLine = Word + " "
+			else:
+				ResultLine += Word + " "
+		if len(ResultLine) > 1:
+			Result += ResultLine[:len(ResultLine) - 1]
+
+		return Result
+
+
+
 #/***********************************************************/
 #/* Set the text on the sub classed visual object instance. */
 #/***********************************************************/
@@ -208,6 +277,12 @@ class Visual:
 			except Exception as Catch:
 				print(str(Catch))
 				self.Text += NewText
+		# Remove duplicate new line characters from the text.
+		self.Text = self.Text.replace('\\n', '\n')
+		BeforeText = ""
+		while self.Text != BeforeText:
+			BeforeText = self.Text
+			self.Text = self.Text.replace('\n\n\n', '\n\n')
 
 
 
@@ -247,7 +322,7 @@ class Visual:
 #/*********************************************/
 #/* Draw this button on the provided surface. */
 #/*********************************************/
-	def Display(self, ThisSurface, xOffset = 0, yOffset = 0, SubXLen = 0, SubYLen = 0):
+	def Display(self, ThisSurface, xOffset = 0, yOffset = 0):
 		if self.Visible == True:
 			if self.Text[:6] == "IMAGE:" and self.Down == False:
 				ScaledPng = pygame.transform.scale(self.Image, (BUTTON_HEIGHT - 7, BUTTON_HEIGHT - 7))
@@ -256,15 +331,6 @@ class Visual:
 				ScaledPng = pygame.transform.scale(self.DownImage, (BUTTON_HEIGHT - 7, BUTTON_HEIGHT - 7))
 				ThisSurface.blit(ScaledPng, (xOffset + self.xPos + (self.xLen - BUTTON_HEIGHT + 7) / 2, yOffset + self.yPos + (self.yLen - BUTTON_HEIGHT + 7) / 2))
 			else:
-				if SubXLen == 0:
-					SubXLen = self.xLen
-				if SubYLen == 0:
-					SubYLen = self.yLen
-				# Remove duplicate new line characters from the text.
-				self.Text = self.Text.replace('\\n', '\n')
-				self.Text = self.Text.replace('\n\n\n', '\n\n')
-				self.DownText = self.DownText.replace('\\n', '\n')
-				self.DownText = self.DownText.replace('\n\n\n', '\n\n')
 				# Select the required text to display.
 				if self.Down == False:
 					self.DisplayText = self.Text
@@ -272,14 +338,14 @@ class Visual:
 					self.DisplayText = self.DownText
 				# Draw each line of the text onto the specified surface.
 				yTop = yOffset
-				LineCount = 0
+				LineCount = 1
 				TextLines = self.DisplayText.split('\n')
 				for TextLine in TextLines:
 					# Split the formatting text from the display text.
 					TextFormat = TextLine.split('|')
-					ThisText = TextFormat[0]
-					FontWidth = self.LargeFont.get_rect(ThisText)[2]
-					FontHeight = self.LargeFont.get_rect(ThisText)[3]
+					ThisText = TextFormat[ELM327.FIELD_PID_DESCRIPTION]
+					FontWidth = Fonts["LargeFont"].get_rect(ThisText)[2]
+					FontHeight = Fonts["LargeFont"].get_rect(ThisText)[3]
 					FontGap = FontHeight + Y_MARGIN
 
 					# Calculate the location of the text on the surface, depending on the specified alignment.
@@ -289,35 +355,40 @@ class Visual:
 					elif self.Align == ALIGN_TEXT_CENTER:
 						TextXPos = xOffset + self.xPos + self.xLen / 2 - FontWidth / 2
 						TextYPos = yOffset + self.yPos + self.yLen / 2 - FontHeight / 2
-					if self.Align == ALIGN_TEXT_RIGHT:
+					elif self.Align == ALIGN_TEXT_RIGHT:
 						TextXPos = xOffset + self.xPos + self.xLen - FontWidth + X_MARGIN
+						TextYPos = yOffset + Y_MARGIN + self.yPos
+					elif self.Align == ALIGN_TEXT_TOP:
+						TextXPos = xOffset + self.xPos + self.xLen / 2 - FontWidth / 2
 						TextYPos = yOffset + Y_MARGIN + self.yPos
 
 					# If left alignment has been specified, draw a fient line between each line of text.
 					if self.Align == ALIGN_TEXT_LEFT:
-						pygame.draw.line(self.ThisSurface, self.ColourBorder, (X_MARGIN + self.xPos + xOffset, self.yPos + yOffset + Y_MARGIN / 2), (self.xPos + self.xLen - 2 * X_MARGIN - xOffset, self.yPos + yOffset + Y_MARGIN / 2), 1)
+						pygame.draw.line(self.ThisSurface, self.ColourGrey, (X_MARGIN + self.xPos + xOffset, self.yPos + yOffset + Y_MARGIN / 2), (self.xPos + self.xLen - 2 * X_MARGIN - xOffset, self.yPos + yOffset + Y_MARGIN / 2), 1)
 						# Check for item number currently selected.
-						if self.MouseXPos >= TextXPos and self.MouseXPos <= TextXPos + SubXLen - 2*X_MARGIN and self.MouseYPos >= TextYPos and self.MouseYPos <= TextYPos + FontHeight:
+						if self.MouseXPos >= X_MARGIN + self.xPos + xOffset and self.MouseXPos <= TextXPos + self.xLen - 3 * X_MARGIN - xOffset and self.MouseYPos >= TextYPos and self.MouseYPos <= TextYPos + FontHeight:
 							self.Selected = LineCount
 							# Highlight currently selected item.
-							pygame.draw.rect(self.ThisSurface, self.ColourFillDown, (X_MARGIN + self.xPos + xOffset, self.yPos + yOffset + Y_MARGIN / 2, SubXLen - 2*X_MARGIN, FontGap), 0)
+							pygame.draw.rect(self.ThisSurface, self.ColourFillDown, (X_MARGIN + self.xPos + xOffset, self.yPos + yOffset + Y_MARGIN / 2, self.xLen - 3 * X_MARGIN - xOffset, FontGap), 0)
 
 					# Display the text on the surface.
-					RenderText = self.LargeFont.render(ThisText, self.ColourText)
+					RenderText = Fonts["LargeFont"].render(ThisText, self.ColourText)
 					ThisSurface.blit(RenderText[0], (TextXPos, TextYPos))
 
 					# If format text also supplied, display right aligned on the surface.
-					if len(TextFormat) > 1:
-						ThisText = TextFormat[1]
-						TextXPos = xOffset + self.xPos + self.xLen - self.LargeFont.get_rect(ThisText)[2] - X_MARGIN
+					if len(TextFormat) > ELM327.FIELD_PID_FORMAT_1:
+						ThisText = TextFormat[ELM327.FIELD_PID_FORMAT_1]
+						if len(TextFormat) > ELM327.FIELD_PID_FORMAT_2:
+							ThisText += " " + TextFormat[ELM327.FIELD_PID_FORMAT_2]
+						TextXPos = xOffset + self.xPos + self.xLen - Fonts["LargeFont"].get_rect(ThisText)[2] - X_MARGIN
 						TextYPos = yOffset + Y_MARGIN + self.yPos
-						RenderText = self.LargeFont.render(ThisText, self.ColourText)
+						RenderText = Fonts["LargeFont"].render(ThisText, self.ColourText)
 						ThisSurface.blit(RenderText[0], (TextXPos, TextYPos))
 
 					# Add to the vertial offset, so the next displayed line is displayed below the current line.
 					yOffset += FontGap
 					# Don't display text outside of the visual area.
-					if yOffset + FontGap >= SubYLen:
+					if yOffset + FontGap >= self.yLen:
 						break
 					LineCount += 1
 

@@ -14,7 +14,7 @@
 #/***************************************************************************/
 #/* Raspberry Pi ELM327 OBBII CAN BUS Diagnostic Software.                  */
 #/*                                                                         */
-#/* (C) Jason Birch 2018-05-09 V1.03                                        */
+#/* (C) Jason Birch 2018-05-15 V1.04                                        */
 #/*                                                                         */
 #/* Class: Display                                                          */
 #/* Look after a hierarchy of objects to be displayed.                      */
@@ -22,7 +22,8 @@
 
 
 
-import hashlib
+import os
+import random
 import pygame
 import Visual
 import Button
@@ -85,53 +86,58 @@ class Display:
 
 		# Define the buttons to be displayed on the background.
 		self.Buttons = {
-			"LOCK" : Button.Button(self.ThisSurface, "LOCK", Visual.PRESS_TOGGLE, 0, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Lock_Off.png", DownText = "IMAGE:Icons/Lock_On.png"),
-			"ADD" : Button.Button(self.ThisSurface, "ADD", Visual.PRESS_DOWN, self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Add.png"),
+			"LOCK" : Button.Button(self.ThisSurface, "LOCK", Visual.PRESS_TOGGLE, 0, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Lock_Off.png", DownText = "IMAGE:ICONS/Lock_On.png"),
+			"ADD" : Button.Button(self.ThisSurface, "ADD", Visual.PRESS_DOWN, self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Add.png"),
 
-			"METERS" : Button.Button(self.ThisSurface, "METERS", Visual.PRESS_LATCH, 3*self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Meters.png"),
-			"FRAME" : Button.Button(self.ThisSurface, "FRAME", Visual.PRESS_LATCH, 4*self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Frame.png"),
-			"FREEZE" : Button.Button(self.ThisSurface, "FREEZE", Visual.PRESS_LATCH, 5*self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/FreezeFrame.png"),
-			"PLOTS" : Button.Button(self.ThisSurface, "PLOTS", Visual.PRESS_LATCH, 6*self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Plots.png"),
-			"TROUBLE" : Button.Button(self.ThisSurface, "TROUBLE", Visual.PRESS_LATCH, 7*self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Trouble.png"),
-			"VEHICLE" : Button.Button(self.ThisSurface, "VEHICLE", Visual.PRESS_LATCH, 8*self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Vehicle.png"),
-			"ELM327" : Button.Button(self.ThisSurface, "ELM327", Visual.PRESS_LATCH, 9*self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/OBDII.png"),
-			"EXIT" : Button.Button(self.ThisSurface, "EXIT", Visual.PRESS_DOWN, self.DisplayXLen-self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Exit.png"),
+			"METERS" : Button.Button(self.ThisSurface, "METERS", Visual.PRESS_LATCH, 3*self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Meters.png"),
+			"FRAME" : Button.Button(self.ThisSurface, "FRAME", Visual.PRESS_LATCH, 4*self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Frame.png"),
+			"FREEZE" : Button.Button(self.ThisSurface, "FREEZE", Visual.PRESS_LATCH, 5*self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/FreezeFrame.png"),
+			"PLOTS" : Button.Button(self.ThisSurface, "PLOTS", Visual.PRESS_LATCH, 6*self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Plots.png"),
+			"TROUBLE" : Button.Button(self.ThisSurface, "TROUBLE", Visual.PRESS_LATCH, 7*self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Trouble.png"),
+			"VEHICLE" : Button.Button(self.ThisSurface, "VEHICLE", Visual.PRESS_LATCH, 8*self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Vehicle.png"),
+			"ELM327" : Button.Button(self.ThisSurface, "ELM327", Visual.PRESS_LATCH, 9*self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/OBDII.png"),
+			"BUSY" : Button.Button(self.ThisSurface, "BUSY", Visual.PRESS_DOWN, self.DisplayXLen-2*self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Busy.png"),
+			"EXIT" : Button.Button(self.ThisSurface, "EXIT", Visual.PRESS_DOWN, self.DisplayXLen-self.ButtonWidth, 0, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Exit.png"),
 
-			"MIL" : Button.Button(self.ThisSurface, "MIL", Visual.PRESS_DOWN, 0, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/MIL_Off.png", DownText = "IMAGE:Icons/MIL_On.png"),
-			"SAVE" : Button.Button(self.ThisSurface, "SAVE", Visual.PRESS_DOWN, self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Save.png"),
-			"PRINT" : Button.Button(self.ThisSurface, "PRINT", Visual.PRESS_DOWN, 2*self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Print.png"),
+			"MIL" : Button.Button(self.ThisSurface, "MIL", Visual.PRESS_DOWN, 0, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/MIL_Off.png", DownText = "IMAGE:ICONS/MIL_On.png"),
+			"SAVE" : Button.Button(self.ThisSurface, "SAVE", Visual.PRESS_DOWN, self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Save.png"),
+			"PRINT" : Button.Button(self.ThisSurface, "PRINT", Visual.PRESS_DOWN, 2*self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Print.png"),
 			"DATE" : Button.Button(self.ThisSurface, "DATE", Visual.PRESS_NONE, 4*self.ButtonWidth, Visual.BUTTON_HEIGHT, 2*self.ButtonWidth, Visual.BUTTON_HEIGHT, "DATE"),
 			"TIME" : Button.Button(self.ThisSurface, "TIME", Visual.PRESS_NONE, 6*self.ButtonWidth, Visual.BUTTON_HEIGHT, 2*self.ButtonWidth, Visual.BUTTON_HEIGHT, "TIME"),
 		}
 
 		# Define the frame data tab area for the display.
 		self.FrameData["INFO"] = Button.Button(self.ThisSurface, "INFO", Visual.PRESS_NONE, 0, 2*Visual.BUTTON_HEIGHT, self.DisplayXLen, self.DisplayYLen - 2*Visual.BUTTON_HEIGHT, "", Visual.ALIGN_TEXT_LEFT)
-		self.FrameData["RELOAD"] = Button.Button(self.ThisSurface, "RELOAD", Visual.PRESS_DOWN, self.DisplayXLen - self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Reload.png")
+		self.FrameData["RELOAD"] = Button.Button(self.ThisSurface, "RELOAD", Visual.PRESS_DOWN, self.DisplayXLen - self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Reload.png")
 
 		# Define the freeze frame data tab area for the display.
 		self.FreezeFrameData["INFO"] = Button.Button(self.ThisSurface, "INFO", Visual.PRESS_NONE, 0, 2*Visual.BUTTON_HEIGHT, self.DisplayXLen, self.DisplayYLen - 2*Visual.BUTTON_HEIGHT, "", Visual.ALIGN_TEXT_LEFT)
-		self.FreezeFrameData["RELOAD_FREEZE"] = Button.Button(self.ThisSurface, "RELOAD_FREEZE", Visual.PRESS_DOWN, self.DisplayXLen - self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Reload.png")
+		self.FreezeFrameData["RELOAD_FREEZE"] = Button.Button(self.ThisSurface, "RELOAD_FREEZE", Visual.PRESS_DOWN, self.DisplayXLen - self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Reload.png")
 
 		# Define the plot tab area for the display.
-		self.Plots["PLOT"] = Plot.Plot(self.ThisSurface, "PLOT", Visual.PRESS_NONE, 0, 2*Visual.BUTTON_HEIGHT, self.DisplayXLen, self.DisplayYLen - Visual.BUTTON_HEIGHT, "")
-		self.Plots["RESET"] = Button.Button(self.ThisSurface, "RESET", Visual.PRESS_DOWN, self.DisplayXLen - self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Reset.png")
+		self.Plots["PLOT"] = Plot.Plot(self.ThisSurface, "PLOT", Visual.PRESS_NONE, 0, 2*Visual.BUTTON_HEIGHT, self.DisplayXLen, self.DisplayYLen - 2*Visual.BUTTON_HEIGHT, "")
+		self.Plots["PLOT_1"] = Button.Button(self.ThisSurface, "PLOT_1", Visual.PRESS_DOWN, self.DisplayXLen - 4*self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "[1]")
+		self.Plots["PLOT_2"] = Button.Button(self.ThisSurface, "PLOT_2", Visual.PRESS_DOWN, self.DisplayXLen - 3*self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "[2]")
+		self.Plots["PLOT_3"] = Button.Button(self.ThisSurface, "PLOT_3", Visual.PRESS_DOWN, self.DisplayXLen - 2*self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "[3]")
+		self.Plots["RESET"] = Button.Button(self.ThisSurface, "RESET", Visual.PRESS_DOWN, self.DisplayXLen - self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Reset.png")
 
 		# Define the trouble tab area for the display.
 		self.TroubleInfo["INFO"] = Button.Button(self.ThisSurface, "INFO", Visual.PRESS_NONE, 0, 2*Visual.BUTTON_HEIGHT, self.DisplayXLen, self.DisplayYLen - 2*Visual.BUTTON_HEIGHT, "", Visual.ALIGN_TEXT_LEFT)
-		self.TroubleInfo["REFRESH"] = Button.Button(self.ThisSurface, "REFRESH", Visual.PRESS_DOWN, 9*self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Refresh.png")
-		self.TroubleInfo["CLEAR"] = Button.Button(self.ThisSurface, "CLEAR", Visual.PRESS_DOWN, self.DisplayXLen - self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Clear.png")
+		self.TroubleInfo["REFRESH"] = Button.Button(self.ThisSurface, "REFRESH", Visual.PRESS_DOWN, 9*self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Refresh.png")
+		self.TroubleInfo["CLEAR"] = Button.Button(self.ThisSurface, "CLEAR", Visual.PRESS_DOWN, self.DisplayXLen - self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Clear.png")
 
 		# Define the vehicle tab area for the display.
 		self.VehicleInfo["INFO"] = Button.Button(self.ThisSurface, "INFO", Visual.PRESS_NONE, 0, 2*Visual.BUTTON_HEIGHT, self.DisplayXLen, self.DisplayYLen - 2*Visual.BUTTON_HEIGHT, "", Visual.ALIGN_TEXT_LEFT)
 
 		# Define the ELM327 tab area for the display.
 		self.ELM327Info["INFO"] = Button.Button(self.ThisSurface, "INFO", Visual.PRESS_NONE, 0, 2*Visual.BUTTON_HEIGHT, self.DisplayXLen, self.DisplayYLen - 2*Visual.BUTTON_HEIGHT, "", Visual.ALIGN_TEXT_LEFT)
-		self.ELM327Info["CONFIG"] = Button.Button(self.ThisSurface, "CONFIG", Visual.PRESS_DOWN, 9*self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Config.png")
-		self.ELM327Info["CONNECT"] = Button.Button(self.ThisSurface, "CONNECT", Visual.PRESS_DOWN, self.DisplayXLen - self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:Icons/Connect.png")
+		self.ELM327Info["CONFIG"] = Button.Button(self.ThisSurface, "CONFIG", Visual.PRESS_DOWN, 9*self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Config.png")
+		self.ELM327Info["CONNECT"] = Button.Button(self.ThisSurface, "CONNECT", Visual.PRESS_DOWN, self.DisplayXLen - self.ButtonWidth, Visual.BUTTON_HEIGHT, self.ButtonWidth, Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Connect.png")
 
 		# Currently selected tab, default meters.
 		self.CurrentTab = self.ELM327Info
 		self.Buttons["ELM327"].SetDown(True)
+		self.Buttons["BUSY"].SetVisible(False)
 
 
 
@@ -141,6 +147,87 @@ class Display:
 	def Close(self):
 		# Show mouse pointer before ending application.
 		pygame.mouse.set_visible(True)
+
+
+
+#/************************************/
+#/* Return the width of the display. */
+#/************************************/
+	def GetDisplayWidth(self):
+		return self.DisplayXLen
+
+
+
+#/*************************************/
+#/* Return the height of the display. */
+#/*************************************/
+	def GetDisplayHeight(self):
+		return self.DisplayYLen
+
+
+
+#/*******************************************/
+#/* Load gadgits onto meters tab from disk. */
+#/*******************************************/
+	def LoadMetersTab(self, ValidPIDs):
+		try:
+			if os.path.isfile("CONFIG/METERS.CFG"):
+				File = open("CONFIG/METERS.CFG", 'r')
+				xPos = 0
+				Name = ""
+				TextLine = "."
+				while TextLine != "":
+					TextLine = File.readline()
+					TextLine = TextLine.replace("\n", "")
+					TextElements = TextLine.split('|')
+					for ThisElement in TextElements:
+						if ThisElement[:5] == "Name=":
+							Name = str(ThisElement[5:])
+							self.Meters[Name] = Gadgit.Gadgit(self.ThisSurface, Name, Visual.PRESS_NONE, 0, 2 * Visual.BUTTON_HEIGHT, self.GadgitWidth, self.GadgitHeight, "NEW")
+						elif ThisElement[:5] == "xPos=":
+							xPos = float(ThisElement[5:])
+						elif ThisElement[:5] == "yPos=":
+							self.Meters[Name].SetPos(xPos, float(ThisElement[5:]))
+						elif ThisElement[:6] == "Style=":
+							self.Meters[Name].SetStyle(float(ThisElement[6:]))
+						elif ThisElement[:4] == "PID=":
+							ThisPID = str(ThisElement[4:])
+							ThisPidDescription = ""
+							if ThisPID in ValidPIDs:
+								ThisPidDescription = ValidPIDs[ThisPID]
+							self.Meters[Name].SetPID(ThisPID, ThisPidDescription)
+				File.close()
+
+				# Hide buttons on meteres, default locked.
+				self.Buttons["LOCK"].SetDown(True)
+				self.Buttons["ADD"].SetVisible(False)
+				for ThisGadget in self.Meters:
+					if type(self.Meters[ThisGadget]) is not str:
+						for ThisButton in self.Meters[ThisGadget].Buttons:
+							self.Meters[ThisGadget].Buttons[ThisButton].SetVisible(False)
+		except:
+			# On fail remove all loaded gadgets.
+			for ThisGadget in self.Meters:
+				if type(self.Meters[ThisGadget]) is not str:
+					self.Meters.pop([ThisGadget], None)
+
+
+
+#/*****************************************/
+#/* Save gadgits from meters tab to disk. */
+#/*****************************************/
+	def SaveMetersTab(self):
+		if len(self.Meters) > 1:
+			File = open("CONFIG/METERS.CFG", 'w')
+			for ThisGadget in self.Meters:
+				if type(self.Meters[ThisGadget]) is not str:
+					Data = "Name=" + str(self.Meters[ThisGadget].GetName())
+					Data += "|xPos=" + str(self.Meters[ThisGadget].GetXPos())
+					Data += "|yPos=" + str(self.Meters[ThisGadget].GetYPos())
+					Data += "|Style=" + str(self.Meters[ThisGadget].GetStyle())
+					Data += "|PID=" + str(self.Meters[ThisGadget].GetPID())
+					File.write(Data + "\n")
+			File.close()
 
 
 
@@ -162,11 +249,11 @@ class Display:
 							# When a gadgit is clicked, bring it to the front of other gadgits.
 							TopGagitIndex = len(Visual.VisualZOrder) - 1
 							ThisGadgitIndex = Visual.VisualZOrder.index(self.CurrentTab[ThisGadget])
-							TempGadgit = Visual.VisualZOrder[TopGagitIndex]
 							Visual.VisualZOrder[TopGagitIndex] = Visual.VisualZOrder[ThisGadgitIndex]
-							Visual.VisualZOrder[ThisGadgitIndex] = TempGadgit
+							for MoveGadgitIndex in range(ThisGadgitIndex, TopGagitIndex):
+								Visual.VisualZOrder[MoveGadgitIndex] = Visual.VisualZOrder[MoveGadgitIndex + 1]
 							# If a gadgit close button was pressed, remove the gadgit.
-							print(str(Result))
+#							print(str(Result))
 							if Result["BUTTON"] == "CLOSE":
 								self.CurrentTab.pop(ThisGadget, None)
 						break
@@ -197,7 +284,7 @@ class Display:
 						# If add button is pressed, add a new gadgit to the meters tab.
 						elif Result["BUTTON"] == "ADD":
 							if self.CurrentTab == self.Meters:
-								NewName = hashlib.md5()
+								NewName = "{:X}".format(random.getrandbits(128))
 								self.Meters[NewName] = Gadgit.Gadgit(self.ThisSurface, NewName, Visual.PRESS_NONE, 0, 2 * Visual.BUTTON_HEIGHT, self.GadgitWidth, self.GadgitHeight, "NEW")
 						# If add button is pressed, add a new gadgit to the meters tab.
 						elif Result["BUTTON"] == "LOCK":

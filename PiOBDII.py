@@ -26,6 +26,12 @@
 #/* 2018-05-09 V1.03 - Icons on buttons, lock meters, additional buttons    */
 #/*                    and arrange buttons. Tested bluetooth ELM327 device. */
 #/*                                                                         */
+#/* 2018-05-15 V1.04 - Complete dial gague representation. Save meters      */
+#/*                    between application runs. Config font, serial port   */
+#/*                    and vehicle. Busy indicator on meter updates. Change */
+#/*                    modal operation to a blocking invisible button to    */
+#/*                    simplify list selection.                             */
+#/*                                                                         */
 #/* Initial OBDII Python application to read trouble codes from the ECU and */
 #/* display each trouble code along with it's human readable description.   */
 #/*                                                                         */
@@ -37,6 +43,7 @@
 #/***************************************************************************/
 
 
+import subprocess
 import datetime
 import _thread
 import pygame
@@ -44,15 +51,19 @@ import ELM327
 import Visual
 import Button
 import Gadgit
+import Plot
+import Config
 import Select
 import Confirm
 import Display
+import PDF
 
 
 
 DISPLAY_PERIOD = 100
-TIMER_PERIOD = 250
-READ_ELM_COUNT = 24
+TIMER_PERIOD = 500
+READ_ELM_COUNT = 8
+PLOT_ELM_COUNT = 4
 
 
 # Start value for pygame user events.
@@ -69,6 +80,7 @@ FlashVisuals = {}
 #/***************************************/
 ThisELM327 = ELM327.ELM327()
 ThisDisplay = Display.Display()
+ThisPDF = PDF.PDF()
 
 
 
@@ -80,6 +92,73 @@ def DebugDisplayZOrder():
 	for ThisVisual in Visual.VisualZOrder:
 		Count += 1
 		print(str(Count) + " " + ThisVisual.GetName() + " " + str(ThisVisual))
+
+
+
+#/************************************************/
+#/* Apply the application configuration options. */
+#/************************************************/
+def ApplyConfig():
+	Config.LoadConfig()
+	Visual.VisualZOrder[0].SetFont(Config.ConfigValues["FontName"])
+	ELM327.SERIAL_PORT_NAME = Config.ConfigValues["SerialPort"]
+	ThisELM327.LoadVehicle(Config.ConfigValues["Vehicle"])
+
+
+
+#/******************************************/
+#/* Print OBDII report on default printer. */
+#/******************************************/
+def PrintPdfReport():
+	Result =  ""
+
+	# Save PDF Report.
+	Result = SavePdfReport("SAVE/PRINT.PDF")
+	# Send PDF report to the default printer.
+	try:
+		subprocess.call("lpr SAVE/PRINT.PDF")
+	except Exception as Catch:
+		Result = str(Catch)
+
+	return Result
+
+
+
+#/************************************/
+#/* Save OBDII report as a PDF file. */
+#/************************************/
+def SavePdfReport(FileName):
+	ThisDisplay.Buttons["BUSY"].SetVisible(True)
+	ThisDisplay.Buttons["BUSY"].SetDown(True)
+	ThisDisplay.Display()
+	try:
+		# Get OBDII vehicle data.
+		if LockELM327.acquire(0):
+			VehicleData(ThisDisplay)
+		# Get OBDII trouble data.
+		if LockELM327.acquire(0):
+			TroubleInfo(ThisDisplay)
+		# Get OBDII data frame.
+		if LockELM327.acquire(0):
+			FrameData(ThisDisplay)
+		# Get OBDII freeze frame.
+		if LockELM327.acquire(0):
+			FreezeFrameData(ThisDisplay)
+		# Add data to the PDF report.
+		PdfData = [
+			["OBDII VEHICLE INFORMATION", ThisDisplay.VehicleInfo["INFO"].GetText()],
+			["OBDII TROUBLE INFORMATION", ThisDisplay.TroubleInfo["INFO"].GetText()],
+			["OBDII DATA FREEZE FRAMES", ThisDisplay.FreezeFrameData["INFO"].GetText()],
+			["OBDII DATA FRAME", ThisDisplay.FrameData["INFO"].GetText()],
+			["ELM327 INFORMATION", ThisELM327.GetInfo()],
+		]
+		ThisPDF.CreateReport(FileName, "FreeMono", PdfData)
+	except Exception as Catch:
+		FileName = str(Catch)
+	ThisDisplay.Buttons["BUSY"].SetDown(False)
+	ThisDisplay.Buttons["BUSY"].SetVisible(False)
+
+	return FileName
 
 
 
@@ -97,26 +176,32 @@ def ConnectELM327(ThisDisplay):
 		ThisDisplay.SetVisualText(ThisDisplay.ELM327Info, "INFO", "CONNECTING TO CAN BUS FOR OBDII COMMUNICATION...\n", False)
 		# Connect to the CAN BUS of the ECU.
 		Result = ThisELM327.Connect()
+		# Display issues initializing the ELM327 device.
+		ThisDisplay.SetVisualText(ThisDisplay.ELM327Info, "INFO", ThisELM327.GetInitResult(), False)
 		# Notify the user of any failures.
 		if Result == ELM327.CONNECT_ELM327_FAIL:
 			ThisDisplay.SetVisualText(ThisDisplay.ELM327Info, "INFO", "FAILED TO CONNECT TO ELM327 DEVICE.\n", True)
 		elif Result == ELM327.CONNECT_CAN_BUS_FAIL:
 			ThisDisplay.SetVisualText(ThisDisplay.ELM327Info, "INFO", "FAILED TO CONNECT TO CAN BUS.\n", True)
 		else:
-			# Display issues initializing the ELM327 device.
-			ThisDisplay.SetVisualText(ThisDisplay.ELM327Info, "INFO", ThisELM327.GetInitResult(), False)
 			# Display ELM327 information.
-			ThisDisplay.SetVisualText(ThisDisplay.ELM327Info, "INFO", "\n" + ThisELM327.GetInfo(), True)
+			ThisDisplay.SetVisualText(ThisDisplay.ELM327Info, "INFO", ThisELM327.GetInfo(), True)
 	except Exception as Catch:
 		print(str(Catch))
 	# Stop flashing connect button after connection attempt.
 	FlashVisuals.pop("CONNECT", None)
 	ThisDisplay.ELM327Info["CONNECT"].SetDown(False)
+	# Allow another ELM327 communication now this one is complete.
+	LockELM327.release()
 	# Check for MIL status after connection attempt.
 	if ThisELM327.GetMilOn() == True:
 		FlashVisuals["MIL"] = ThisDisplay.Buttons["MIL"]
-	# Allow another ELM327 communication now this one is complete.
-	LockELM327.release()
+	# Get a list of all valid PIDs the connected ECU supports.
+	ValidPIDs = ThisELM327.GetValidPIDs()
+	# Resume the state of the meters tab where last saved.
+	ThisDisplay.LoadMetersTab(ValidPIDs)
+	# Load the config for the plot series.
+	ThisDisplay.Plots["PLOT"].LoadSeriesConfig(ValidPIDs)
 
 
 
@@ -130,11 +215,31 @@ def FrameData(ThisDisplay):
 		# Get the information available for each of the supported PIDs.
 		ThisDisplay.SetVisualText(ThisDisplay.FrameData, "INFO", "", False)
 		for PID in sorted(ValidPIDs):
-			if ValidPIDs[PID][0] != '!':
+			if ValidPIDs[PID][ELM327.FIELD_PID_DESCRIPTION] != '!':
 				# Display the information returned for the current PID.
 				if PID[1] == '1':
 					PidData = ThisELM327.DoPID(PID)
 					ThisDisplay.SetVisualText(ThisDisplay.FrameData, "INFO", "[" + PID + "] " + ValidPIDs[PID] + "\n", True, PidData)
+	except Exception as Catch:
+		print(str(Catch))
+	# Allow another ELM327 communication now this one is complete.
+	LockELM327.release()
+
+
+
+#/*****************************************************/
+#/* Get a freeze frame of all valid PIDs for Mode 02. */
+#/*****************************************************/
+def FreezeFrameData(ThisDisplay):
+	try:
+		for FreezeIndex in range(ThisELM327.GetFreezeFrameCount()):
+			# Get a list of all valid PIDs the connected ECU supports.
+			ValidPIDs = ThisELM327.GetValidPIDs(FreezeIndex)
+			# Get the information available for each of the supported PIDs.
+			ThisDisplay.SetVisualText(ThisDisplay.FreezeFrameData, "INFO", "", False)
+			for PID in sorted(ValidPIDs):
+				PidData = ThisELM327.DoPID(PID[:4], FreezeIndex)
+				ThisDisplay.SetVisualText(ThisDisplay.FreezeFrameData, "INFO", "[" + PID + "] " + ValidPIDs[PID] + "\n", True, PidData)
 	except Exception as Catch:
 		print(str(Catch))
 	# Allow another ELM327 communication now this one is complete.
@@ -152,7 +257,7 @@ def VehicleData(ThisDisplay):
 		# Get the information available for each of the supported PIDs.
 		ThisDisplay.SetVisualText(ThisDisplay.VehicleInfo, "INFO", "", False)
 		for PID in sorted(ValidPIDs):
-			if ValidPIDs[PID][0] != '!':
+			if ValidPIDs[PID][ELM327.FIELD_PID_DESCRIPTION] != '!':
 				# Display the information returned for the current PID.
 				if PID[1] == '9':
 					PidData = ThisELM327.DoPID(PID)
@@ -214,6 +319,8 @@ def ClearTroubleInfo(ThisDisplay):
 #/* Update the data for the created gadgits from the ECU. */
 #/*********************************************************/
 def MeterData(ThisDisplay):
+	ThisDisplay.Buttons["BUSY"].SetVisible(True)
+	FlashVisuals["BUSY"] = ThisDisplay.Buttons["BUSY"]
 	try:
 		# Get the information available for each of the meter related PIDs.
 		for ThisGadgit in ThisDisplay.Meters:
@@ -227,9 +334,37 @@ def MeterData(ThisDisplay):
 		print(str(Catch))
 	# Allow another ELM327 communication now this one is complete.
 	LockELM327.release()
+	FlashVisuals.pop("BUSY", None)
+	ThisDisplay.Buttons["BUSY"].SetVisible(False)
 
 
 
+#/*********************************************************/
+#/* Update the data for the created gadgits from the ECU. */
+#/*********************************************************/
+def PlotData(ThisDisplay):
+	ThisDisplay.Buttons["BUSY"].SetVisible(True)
+	FlashVisuals["BUSY"] = ThisDisplay.Buttons["BUSY"]
+	try:
+		# Get the information available for each of the plot related PIDs.
+		for Index in range(Plot.PLOT_COUNT):
+			if ThisDisplay.Plots["PLOT"].IsDataEnd(Index) == False:
+				PID = ThisDisplay.Plots["PLOT"].GetPID(Index)
+				if PID != "":
+					# Plot the information returned for the current PID.
+					PidData = ThisELM327.DoPID(PID)
+					ThisDisplay.Plots["PLOT"].SetData(Index, PidData)
+	except Exception as Catch:
+		print(str(Catch))
+	# Allow another ELM327 communication now this one is complete.
+	LockELM327.release()
+	FlashVisuals.pop("BUSY", None)
+	ThisDisplay.Buttons["BUSY"].SetVisible(False)
+
+
+
+# Set the configuration before start.
+ApplyConfig()
 
 # Create a timer for updating the displayed time/date and updating gadgit data from the ECU.
 pygame.time.set_timer(EVENT_TIMER, TIMER_PERIOD)
@@ -241,6 +376,7 @@ if LockELM327.acquire(0):
 # Application message loop.
 ExitFlag = False
 ReadElmCount = READ_ELM_COUNT
+PlotElmCount = PLOT_ELM_COUNT
 while ExitFlag == False:
 	pygame.time.wait(DISPLAY_PERIOD)
 
@@ -255,45 +391,51 @@ while ExitFlag == False:
 			if KeysPressed[pygame.K_ESCAPE]:
 				ExitFlag = True
 		elif ThisEvent.type == EVENT_TIMER:
-			# Update the displayed date and time.
-			Now = datetime.datetime.now()
-			NowTime = Now.strftime("%H:%M")
-			NowDate = Now.strftime("%Y-%m-%d")
-			ThisDisplay.SetVisualText(ThisDisplay.CurrentTab, "TIME", NowTime)
-			ThisDisplay.SetVisualText(ThisDisplay.CurrentTab, "DATE", NowDate)
+			try:
+				# Update the displayed date and time.
+				Now = datetime.datetime.now()
+				NowTime = Now.strftime("%H:%M")
+				NowDate = Now.strftime("%Y-%m-%d")
+				ThisDisplay.SetVisualText(ThisDisplay.CurrentTab, "TIME", NowTime)
+				ThisDisplay.SetVisualText(ThisDisplay.CurrentTab, "DATE", NowDate)
 
-			# Flash visual instances flagged to be flashed.
-			for ThisVisual in FlashVisuals:
-				if FlashVisuals[ThisVisual].GetDown() == False:
-					FlashVisuals[ThisVisual].SetDown(True)
-				else:
-					FlashVisuals[ThisVisual].SetDown(False)
+				# Unhighlight pressed buttons which are not latch or toggle.
+				for ThisVisual in Visual.VisualZOrder:
+					if ThisVisual.GetName() not in FlashVisuals and ThisVisual.GetPressType() == Visual.PRESS_DOWN:
+						ThisVisual.SetDown(False)
 
-			# Unhighlight pressed buttons which are not latch or toggle.
-			for ThisButton in ThisDisplay.Buttons:
-				if ThisButton not in FlashVisuals and ThisDisplay.Buttons[ThisButton].GetPressType() == Visual.PRESS_DOWN:
-					ThisDisplay.Buttons[ThisButton].SetDown(False)
-			for ThisGadget in ThisDisplay.CurrentTab:
-				if type(ThisDisplay.CurrentTab[ThisGadget]) is Button.Button:
-					if ThisGadget not in FlashVisuals and ThisDisplay.CurrentTab[ThisGadget].GetPressType() == Visual.PRESS_DOWN:
-						ThisDisplay.CurrentTab[ThisGadget].SetDown(False)
-				if type(ThisDisplay.CurrentTab[ThisGadget]) is Gadgit.Gadgit:
-					for ThisButton in ThisDisplay.CurrentTab[ThisGadget].Buttons:
-						if ThisDisplay.CurrentTab[ThisGadget].Buttons[ThisButton].GetPressType() == Visual.PRESS_DOWN:
-							ThisDisplay.CurrentTab[ThisGadget].Buttons[ThisButton].SetDown(False)
+				# Flash visual instances flagged to be flashed.
+				for ThisVisual in FlashVisuals:
+					if FlashVisuals[ThisVisual].GetDown() == False:
+						FlashVisuals[ThisVisual].SetDown(True)
+					else:
+						FlashVisuals[ThisVisual].SetDown(False)
 
-			# Update the gadgit data from the ECU.
-			ReadElmCount -= 1
-			if ThisDisplay.CurrentTab == ThisDisplay.Meters and ReadElmCount <= 0:
-				if LockELM327.acquire(0):
-					ReadElmCount = READ_ELM_COUNT
-					MeterData(ThisDisplay)
+				# Update the gadgit data from the ECU.
+				ReadElmCount -= 1
+				if ThisDisplay.CurrentTab == ThisDisplay.Meters and ReadElmCount <= 0 and ThisDisplay.Buttons["LOCK"].GetDown() == True:
+					if LockELM327.acquire(0):
+						ReadElmCount = READ_ELM_COUNT
+						pygame.time.set_timer(EVENT_TIMER, TIMER_PERIOD)
+						_thread.start_new_thread(MeterData, (ThisDisplay, ))
+						pygame.time.set_timer(EVENT_TIMER, TIMER_PERIOD)
+
+				# Update the plot data from the ECU.
+				PlotElmCount -= 1
+				if ThisDisplay.CurrentTab == ThisDisplay.Plots and PlotElmCount <= 0:
+					if LockELM327.acquire(0):
+						PlotElmCount = PLOT_ELM_COUNT
+						pygame.time.set_timer(EVENT_TIMER, TIMER_PERIOD)
+						_thread.start_new_thread(PlotData, (ThisDisplay, ))
+						pygame.time.set_timer(EVENT_TIMER, TIMER_PERIOD)
+			except Exception as Catch:
+				print(str(Catch))
 		# Only process the following events if the ELM327 device is not currently communicating.
 		elif LockELM327.locked() == False:
 			if ThisEvent.type == pygame.MOUSEBUTTONDOWN:
 				# Pass button down events to all buttons and gadgits.
 				ButtonGadgit = ThisDisplay.IsEvent(Visual.EVENT_MOUSE_DOWN, ThisEvent.pos[0], ThisEvent.pos[1], ThisEvent.button)
-				print(str(ButtonGadgit))
+#				print(str(ButtonGadgit))
 				if ButtonGadgit != False:
 					# If exit button is pressed, finish the application.
 					if ButtonGadgit["BUTTON"] == "EXIT":
@@ -313,47 +455,102 @@ while ExitFlag == False:
 					# If select dialog selection is made, close the dialog.
 					elif "SELECTED" in ButtonGadgit:
 						ThisDisplay.CurrentTab.pop("SELECT", None)
-						if ButtonGadgit["SELECTED"] != False and ButtonGadgit["GADGIT"] == "SELECT_PID":
+						if ButtonGadgit["SELECTED"] != False:
 							SelectLines = SelectText.split('\n')
-							SelectedLine = SelectLines[ButtonGadgit["SELECTED"]]
-							ThisPID = SelectedLine[SelectedLine.find("[") + 1:SelectedLine.find("]")]
-							# Get a list of all valid PIDs the connected ECU supports.
-							ValidPIDs = ThisELM327.GetValidPIDs()
-							if ThisPID in ValidPIDs:
-								ThisDisplay.Meters[SelectGadgit].SetPID(ThisPID, ValidPIDs[ThisPID])
+							SelectedLine = SelectLines[ButtonGadgit["SELECTED"] - 1]
+							if ButtonGadgit["GADGIT"] == "SELECT_PID":
+								ThisPID = SelectedLine[SelectedLine.find("[") + 1:SelectedLine.find("]")]
+								# Get a list of all valid PIDs the connected ECU supports.
+								ValidPIDs = ThisELM327.GetValidPIDs()
+								if ThisPID in ValidPIDs:
+									if SelectGadgit[:5] != "PLOT_":
+										ThisDisplay.Meters[SelectGadgit].SetPID(ThisPID, ValidPIDs[ThisPID])
+									else:
+										ThisDisplay.Plots["PLOT"].SetPID(int(SelectGadgit[5]) - 1, ThisPID, ValidPIDs[ThisPID])
+							elif ButtonGadgit["GADGIT"] == "SELECT_FONT_NAME":
+								Config.ConfigValues["FontName"] = SelectedLine
+							elif ButtonGadgit["GADGIT"] == "SELECT_SERIAL_PORT_NAME":
+								Config.ConfigValues["SerialPort"] = SelectedLine
+							elif ButtonGadgit["GADGIT"] == "SELECT_VEHICLE_NAME":
+								Config.ConfigValues["Vehicle"] = SelectedLine
 					# If print button is pressed.
 					elif ButtonGadgit["BUTTON"] == "PRINT":
-						# Display NOT IMPLEMENTED YET.
-						ThisDisplay.CurrentTab["CONFIRM"] = Confirm.Confirm(ThisDisplay.ThisSurface, "CONFIRM_TBA", "THIS FEATURE\nNOT IMPLEMENTED CURRENTLY")
+						# Print PDF Report.
+						Result = PrintPdfReport()
+						# Display print report message.
+						ThisDisplay.CurrentTab["CONFIRM"] = Confirm.Confirm(ThisDisplay.ThisSurface, "CONFIRM_PRINT", "OBDII Report Sent To Default Printer\n" + Result, ThisDisplay.GetDisplayWidth()/1.5, True)
 					# If save button is pressed.
 					elif ButtonGadgit["BUTTON"] == "SAVE":
-						# Display NOT IMPLEMENTED YET.
-						ThisDisplay.CurrentTab["CONFIRM"] = Confirm.Confirm(ThisDisplay.ThisSurface, "CONFIRM_TBA", "THIS FEATURE\nNOT IMPLEMENTED CURRENTLY")
+						# Get the date and time for the report filename.
+						Now = datetime.datetime.now()
+						FileName = "SAVE/"
+						FileName += Now.strftime("%Y-%m-%d_%H-%M-%S_")
+						# Get Vehicle VIN for report filename.
+						FileName += ThisELM327.DoPID("0902").replace(' ', '') + ".pdf"
+						# Save PDF Report.
+						Result = SavePdfReport(FileName)
+						# Display PDF saved message.
+						ThisDisplay.CurrentTab["CONFIRM"] = Confirm.Confirm(ThisDisplay.ThisSurface, "CONFIRM_PDF", "OBDII Report Saved:\n" + Result, ThisDisplay.GetDisplayWidth()/1.5, True)
+					# If reset plot button is pressed.
+					elif ButtonGadgit["BUTTON"] == "RESET":
+						ThisDisplay.Plots["PLOT"].ClearData()
 					# If configure button is pressed.
 					elif ButtonGadgit["BUTTON"] == "CONFIG":
-						# Display NOT IMPLEMENTED YET.
-						ThisDisplay.CurrentTab["CONFIRM"] = Confirm.Confirm(ThisDisplay.ThisSurface, "CONFIRM_TBA", "THIS FEATURE\nNOT IMPLEMENTED CURRENTLY")
+						# Display configuration dialog.
+						ThisDisplay.CurrentTab["CONFIGURE"] = Config.Config(ThisDisplay.ThisSurface, "CONFIGURE", "CONFIGURE")
+					# If save config button is pressed.
+					elif ButtonGadgit["BUTTON"] == "SAVE_CONFIG":
+						ThisDisplay.CurrentTab.pop("CONFIGURE", None)
+						ApplyConfig()
+					elif ButtonGadgit["BUTTON"] == "SELECT_FONT":
+						# Remember which gadgit the select is for.
+						SelectGadgit = ButtonGadgit["GADGIT"]
+						# Get a list of mono space font names.
+						SelectText = ThisDisplay.CurrentTab["CONFIGURE"].GetFontNameList()
+						# Display a font name selection dialog.
+						ThisDisplay.CurrentTab["SELECT"] = Select.Select(ThisDisplay.ThisSurface, "SELECT_FONT_NAME", SelectText)
+					elif ButtonGadgit["BUTTON"] == "SELECT_VEHICLE":
+						# Remember which gadgit the select is for.
+						SelectGadgit = ButtonGadgit["GADGIT"]
+						# Get a list of vehicle trouble code file names.
+						SelectText = ThisDisplay.CurrentTab["CONFIGURE"].GetVehicleNameList()
+						# Display a font name selection dialog.
+						ThisDisplay.CurrentTab["SELECT"] = Select.Select(ThisDisplay.ThisSurface, "SELECT_VEHICLE_NAME", SelectText)
+					elif ButtonGadgit["BUTTON"] == "SELECT_SERIAL_PORT":
+						# Remember which gadgit the select is for.
+						SelectGadgit = ButtonGadgit["GADGIT"]
+						# Get a list of vehicle trouble code file names.
+						SelectText = ThisDisplay.CurrentTab["CONFIGURE"].GetSerialPortNameList()
+						# Display a font name selection dialog.
+						ThisDisplay.CurrentTab["SELECT"] = Select.Select(ThisDisplay.ThisSurface, "SELECT_SERIAL_PORT_NAME", SelectText)
 					# If connect button is pressed, connect to the CAN BUS.
 					elif ButtonGadgit["BUTTON"] == "CONNECT":
 						if LockELM327.acquire(0):
 							_thread.start_new_thread(ConnectELM327, (ThisDisplay, ))
 					# If select button is pressed, select a PID for the specific gadgit.
-					elif ButtonGadgit["BUTTON"] == "SELECT":
+					elif ButtonGadgit["BUTTON"] == "SELECT" or ButtonGadgit["BUTTON"][:5] == "PLOT_":
 						# Remember which gadgit the select is for.
-						SelectGadgit = ButtonGadgit["GADGIT"]
+						if ButtonGadgit["BUTTON"] == "SELECT":
+							SelectGadgit = ButtonGadgit["GADGIT"]
+						else:
+							SelectGadgit = ButtonGadgit["BUTTON"]
 						# Get a list of all valid PIDs the connected ECU supports.
 						ValidPIDs = ThisELM327.GetValidPIDs()
 						# Get the information available for each of the supported PIDs.
 						SelectText = ""
 						for PID in sorted(ValidPIDs):
-							if ValidPIDs[PID][0] != '!':
+							if ValidPIDs[PID][ELM327.FIELD_PID_DESCRIPTION] != '!':
 								PidDescription = ValidPIDs[PID].split("|")
 								SelectText += "[" + PID + "] " + PidDescription[0] + "\n"
 						# Display a PID selection dialog.
 						ThisDisplay.CurrentTab["SELECT"] = Select.Select(ThisDisplay.ThisSurface, "SELECT_PID", SelectText)
-					# If vehicle button is pressed, get the vehicle data from the ECU.
+					# If close button is pressed, close the relavent dialog.
 					elif ButtonGadgit["BUTTON"] == "CLOSE":
-						ThisDisplay.CurrentTab.pop("SELECT", None)
+						if ButtonGadgit["BUTTON"] == "SELECT":
+							ThisDisplay.CurrentTab.pop("SELECT", None)
+						elif ButtonGadgit["BUTTON"] == "CONFIGURE":
+							ThisDisplay.CurrentTab.pop("CONFIGURE", None)
+					# If vehicle button is pressed, get the vehicle data from the ECU.
 					elif ButtonGadgit["BUTTON"] == "VEHICLE":
 						if LockELM327.acquire(0):
 							_thread.start_new_thread(VehicleData, (ThisDisplay, ))
@@ -370,14 +567,10 @@ while ExitFlag == False:
 					elif ButtonGadgit["BUTTON"] == "CLEAR":
 						# Display a confirmation to clear ECU trouble codes.
 						ThisDisplay.CurrentTab["CONFIRM"] = Confirm.Confirm(ThisDisplay.ThisSurface, "CONFIRM_CLEAR_ECU", "Clear all trouble codes\nand related data\non the ECU?")
-					# If plots button is pressed.
-					elif ButtonGadgit["BUTTON"] == "PLOTS":
-						# Display NOT IMPLEMENTED YET.
-						ThisDisplay.CurrentTab["CONFIRM"] = Confirm.Confirm(ThisDisplay.ThisSurface, "CONFIRM_TBA", "THIS FEATURE\nNOT IMPLEMENTED CURRENTLY")
 					# If freeze button is pressed.
 					elif ButtonGadgit["BUTTON"] == "FREEZE" or ButtonGadgit["BUTTON"] == "RELOAD_FREEZE":
-						# Display NOT IMPLEMENTED YET.
-						ThisDisplay.CurrentTab["CONFIRM"] = Confirm.Confirm(ThisDisplay.ThisSurface, "CONFIRM_TBA", "THIS FEATURE\nNOT IMPLEMENTED CURRENTLY")
+						if LockELM327.acquire(0):
+							_thread.start_new_thread(FreezeFrameData, (ThisDisplay, ))
 					# If frame button is pressed, get a frame of data from the ECU.
 					elif ButtonGadgit["BUTTON"] == "FRAME" or ButtonGadgit["BUTTON"] == "RELOAD":
 						if LockELM327.acquire(0):
@@ -395,6 +588,12 @@ while ExitFlag == False:
 	# Update the display.
 	ThisDisplay.Display()
 
+
+
+# Save the current state of the meters tab to resume when next run.
+ThisDisplay.SaveMetersTab()
+# Save the config for the plot series.
+ThisDisplay.Plots["PLOT"].SaveSeriesConfig()
 
 # Terminate application.
 pygame.time.set_timer(EVENT_TIMER, 0)
