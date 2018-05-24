@@ -59,8 +59,6 @@ of the engine or even damage the engine.
 ==============================================================================
 
 
-![alt text](https://raw.githubusercontent.com/BirchJD/PiOBDII/ICONS/ScreenShot.png)
-
 
 REQUIREMENTS
 ============
