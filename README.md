@@ -59,6 +59,8 @@ of the engine or even damage the engine.
 ==============================================================================
 
 
+![alt text](https://raw.githubusercontent.com/BirchJD/PiOBDII/ICONS/ScreenShot.png)
+
 
 REQUIREMENTS
 ============
@@ -87,7 +89,20 @@ apt-get install python3-serial
 apt-get install python3-pygame
 apt-get install python3-pypdf2
 apt-get install python3-reportlab
+
+# If you are running Raspbian lignt, you will also need the following to
+provide a minimal GUI environment.
+On a 4GB SD card after install 1685452 (~1.6GB) used and 1860924(~1.8GB) free:
+apt-get install xserver-xorg
+apt-get install xserver-xorg-input-mouse
+apt-get install xserver-xorg-input-kbd
+apt-get install xserver-xorg-video-*
+apt-get install lxdm
+
+# Optional for printer support, currently untested:
 apt-get install lpr
+
+# Optional for opening and reading PDF files from Raspbian:
 apt-get install evince
 
 
