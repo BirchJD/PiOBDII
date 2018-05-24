@@ -38,7 +38,7 @@ class Confirm(Visual.Visual):
 			self.xLen = self.DisplayXLen / 3
 		else:
 			self.xLen = xLen
-		self.yLen = self.DisplayYLen / 2.75
+		self.yLen = self.DisplayYLen / 2.5
 		self.xPos = (self.DisplayXLen - self.xLen) / 2
 		self.yPos = (self.DisplayYLen - self.yLen) / 2
 		self.ColourFill = self.ColourDialog

@@ -14,7 +14,7 @@
 #/***************************************************************************/
 #/* Raspberry Pi ELM327 OBBII CAN BUS Diagnostic Software.                  */
 #/*                                                                         */
-#/* (C) Jason Birch 2018-05-15 V1.04                                        */
+#/* (C) Jason Birch 2018-05-24 V1.05                                        */
 #/*                                                                         */
 #/* Class: Config                                                           */
 #/* Display a dialog showing a list of configurable items for the           */
@@ -78,7 +78,7 @@ class Config(Visual.Visual):
 
 		# Config covers full display, but only draw in middle so some interface can still be seen, but not used.
 		self.xLen = self.DisplayXLen / 1.25
-		self.yLen = self.DisplayYLen / 2
+		self.yLen = self.DisplayYLen / 1.25
 		self.xPos = (self.DisplayXLen - self.xLen) / 2
 		self.yPos = (self.DisplayYLen - self.yLen) / 2
 		self.Align = Visual.ALIGN_TEXT_TOP
@@ -125,7 +125,7 @@ class Config(Visual.Visual):
 		# Find BlueTooth serial port names.
 		try:
 			for SerialPortName in os.listdir("/dev/"):
-				if SerialPortName[:7] == "rfcomm":
+				if SerialPortName[:6] == "rfcomm":
 					SerialPortNames += "/dev/" + SerialPortName + "\n"
 		except:
 			print("Failed to read: /dev/")

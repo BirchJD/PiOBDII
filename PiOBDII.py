@@ -32,6 +32,10 @@
 #/*                    modal operation to a blocking invisible button to    */
 #/*                    simplify list selection.                             */
 #/*                                                                         */
+#/* 2018-05-24 V1.05 - Added Bluetooth pairing description to acompany      */
+#/*                    YouTube video, pairing Bluetooth devices on a        */
+#/*                    Raspberry Pi. Plus other minor updates.              */
+#/*                                                                         */
 #/* Initial OBDII Python application to read trouble codes from the ECU and */
 #/* display each trouble code along with it's human readable description.   */
 #/*                                                                         */

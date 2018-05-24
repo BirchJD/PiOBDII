@@ -30,6 +30,10 @@
 #/*                    modal operation to a blocking invisible button to    */
 #/*                    simplify list selection.                             */
 #/*                                                                         */
+#/* 2018-05-24 V1.05 - Added Bluetooth pairing description to acompany      */
+#/*                    YouTube video, pairing Bluetooth devices on a        */
+#/*                    Raspberry Pi. Plus other minor updates.              */
+#/*                                                                         */
 #/* Initial OBDII Python application to read trouble codes from the ECU and */
 #/* display each trouble code along with it's human readable description.   */
 #/*                                                                         */
@@ -60,7 +64,7 @@ of the engine or even damage the engine.
 
 
 
-REQUIREMENTS
+REQUIREMENTS (Perform operations here as root user)
 ============
 
 This project is not supported, the source code is here only to assist others
@@ -81,7 +85,7 @@ cat /proc/version
 	#1110 SMP Mon Apr 16 15:18:51 BST 2018
 
 
-Packages required to run the software:
+# Packages required to run the software:
 apt-get install python3
 apt-get install python3-serial
 apt-get install python3-pygame
@@ -89,8 +93,8 @@ apt-get install python3-pypdf2
 apt-get install python3-reportlab
 
 # If you are running Raspbian lignt, you will also need the following to
-provide a minimal GUI environment.
-On a 4GB SD card after install 1685452 (~1.6GB) used and 1860924(~1.8GB) free:
+# provide a minimal GUI environment.
+# On a 4GB SD card after install 1685452 (~1.6GB) used and 1860924(~1.8GB) free:
 apt-get install xserver-xorg
 apt-get install xserver-xorg-input-mouse
 apt-get install xserver-xorg-input-kbd
@@ -104,7 +108,7 @@ apt-get install lpr
 apt-get install evince
 
 
-Packages for Bluetooth serial dongle:
+# Packages for Bluetooth serial dongle:
 apt-get install bluez
 apt-get install bluetoothd
 
@@ -125,6 +129,22 @@ for other vehicles there may be missing supported PID codes. To add support
 for a PID code, add the PID code to the EML327 class using existing PID source
 code as a guide. And check the formatting of the data in the PID text file
 definitions.
+
+What does this mean for other vehicles:
+
+The trouble code reporting is standard to the OBDII protocol. So trouble code
+reporting should work. There are standard ISO trouble code descriptions which
+apply to all vehicles, these descriptions are present, and will be displayed
+with the trouble codes reported. Vehicle specific trouble codes will be
+reported, but with the description "[NO DESCRIPTION]", so you will still see
+the trouble code numbers which you can look up, or provide a lookup table for
+your own vehicle.
+
+The most common PIDs are supported, such as vehicle speed, engine speed, engine
+temperature, ... Any unsupported PIDs should appear with an unsupported message.
+You should be able to add them in the ELM327.py file. I am unlikely to have
+time to add them, but you can report them as missing and if I have time I will
+attempt to add them if you reply as to if they are working correctly after.
 
 
 
@@ -158,36 +178,104 @@ https://www.youtube.com/watch?v=JHP_yXznV2Q
 
 
 
-BLUETOOTH DONGLE
+BLUETOOTH DONGLE (Perform operations here as root user)
 ================
 
-EXAMPLE CONNECTING TO A BLUETOOTH ELM327 DONGLE FROM
-LINUX COMMAND LINE:
+EXAMPLE CONNECTING TO A BLUETOOTH ELM327 DONGLE FROM LINUX COMMAND LINE
+OR THE BUILT IN RASPBERRY PI 3 BLUETOOTH DEVICE:
 
+
+# Bluetooth service
+# -----------------
+
+# Get the status of the Bluetooth service.
+service bluetooth status
+
+# If the Bluetooth service is not running, start it.
 service bluetooth start
 
+# Stop the Bluetooth service only if required.
+service bluetooth stop
+
+
+# Pairing a Bluetooth device
+# --------------------------
+
+# Once a device is paired it should automatically pair in future.
+
+# Start the Bluetooth utility.
 bluetoothctl
+
+# Make sure the Bluetooth device is powered on.
 power on
+
+# Make sure an agent is running for the Bluetooth device.
 agent on
+
+# Start a scan for other Bluetooth devices in the area.
 scan on
+
+# Wait for the required Bluetooth device to be reported...
+
+# Stop scanning when the required Bluetooth device is found.
 scan off
+
+# Attempt to pair the required Bluetooth device.
 pair <dev>
 
 e.g. <dev>=00:1D:A5:F7:FF:0D
 
-rfkill list
+# Pairing normally prompts for a password. Standard Bluetooth pairing passwords
+# are: 0000 or 1234, try these if you are unsure of the password.
 
-rfcomm bind 0 <dev>
-rfcomm
-/dev/rfcomm0
-rfcomm release <dev>
-
-bluetoothctl
-remove <dev>
+# If parinig fails or propt for password does not appear, try the following, and
+# then try paring again.
 agent off
 power off
+power on
+agent on
 
-service bluetooth stop
+# Once paired it should appear in the list of paired devices.
+paired-devices
+
+# You can now leave the Bluetooth utility and the device should be paired and
+# ready for use.
+quit
+
+
+# Creating a serial device for use in the OBDII application
+# ---------------------------------------------------------
+
+# rfcomm associates the paired device ID with a serial device name.
+rfcomm bind 0 <dev>
+
+# The device it should create is:
+/dev/rfcomm0
+
+# To remove the serial device do the following if required.
+rfcomm release <dev>
+
+### Shouldn't need this command, force rfdevices to stop.
+### rfkill list
+
+
+# Unpairing a Bluetooth device
+# ----------------------------
+
+# Start the Bluetooth utility.
+bluetoothctl
+
+# Unpair the Bluetooth device if required.
+remove <dev>
+
+# Make sure the agent is stopped for the Bluetooth device.
+agent off
+
+# Make sure the Bluetooth device is powered down.
+power off
+
+# Exit the Bluetooth utility.
+quit
 
 
 
