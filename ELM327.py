@@ -14,7 +14,7 @@
 #/***************************************************************************/
 #/* Raspberry Pi ELM327 OBBII CAN BUS Diagnostic Software.                  */
 #/*                                                                         */
-#/* (C) Jason Birch 2018-05-25 V1.06                                        */
+#/* (C) Jason Birch 2018-05-25 V1.07                                        */
 #/*                                                                         */
 #/* Class: ELM327                                                           */
 #/* Handle communications with an ELM327 device, communicating with the     */
@@ -321,9 +321,27 @@ class ELM327:
 			Response = self.GetResponse(b'AT Z\r')
 
 			# Echo Off, for faster communications.
-			Response = self.GetResponse(b'AT E0\r')
+			Response = self.GetResponse(b'AT E0\r').replace('\r', '')
 			if Response != 'AT E0\nOK\n':
 				self.InitResult += "FAILED: AT E0 (Set Echo Off)\n"
+
+			# Linefeed off, for faster communications.
+			if self.InitResult == "":
+				Response = self.GetResponse(b'AT L0\r').replace('\r', '')
+				if Response != 'OK\n':
+					self.InitResult += "FAILED: AT L0 (Set Linefeed Off)\n"
+
+			# Responses on, for format recognition.
+			if self.InitResult == "":
+				Response = self.GetResponse(b'AT R1\r')
+				if Response != 'OK\n':
+					self.InitResult += "FAILED: AT R1 (Set Responses On)\n"
+
+			# Headers off, for format recognition.
+			if self.InitResult == "":
+				Response = self.GetResponse(b'AT H0\r')
+				if Response != 'OK\n':
+					self.InitResult += "FAILED: AT H0 (Set Headers Off)\n"
 
 			# Don't print space characters, for faster communications.
 			if self.InitResult == "":

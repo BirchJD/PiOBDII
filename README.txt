@@ -37,6 +37,11 @@
 #/* 2018-05-25 V1.06 - Added debug config option to toggle on and off debug */
 #/*                    logging to resolve issues.                           */
 #/*                                                                         */
+#/* 2018-05-25 V1.07 - ELM327 Devices can have configuration settings saved */
+#/*                    so even after a reset they reset to specific setting */
+#/*                    Fix for issues when this is the case by being more   */
+#/*                    specific on ELM327 Device initialisation.            */
+#/*                                                                         */
 #/* Initial OBDII Python application to read trouble codes from the ECU and */
 #/* display each trouble code along with it's human readable description.   */
 #/*                                                                         */
