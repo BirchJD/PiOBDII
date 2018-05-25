@@ -14,7 +14,7 @@
 #/***************************************************************************/
 #/* Raspberry Pi ELM327 OBBII CAN BUS Diagnostic Software.                  */
 #/*                                                                         */
-#/* (C) Jason Birch 2018-05-15 V1.04                                        */
+#/* (C) Jason Birch 2018-05-25 V1.06                                        */
 #/*                                                                         */
 #/* Class: ELM327                                                           */
 #/* Handle communications with an ELM327 device, communicating with the     */
@@ -27,7 +27,9 @@ import time
 import serial
 
 
+DEBUG = "OFF"
 
+# Connection to ELM327 device status.
 CONNECT_SUCCESS = 0
 CONNECT_ELM327_FAIL = 1
 CONNECT_CAN_BUS_FAIL = 2
@@ -460,6 +462,9 @@ class ELM327:
 #/* response.                                     */
 #/*************************************************/
 	def GetResponse(self, Data):
+		if DEBUG == "ON":
+			print("DEBUG SENDING: " + str(Data))
+
 		self.ELM327.write(Data)
 		Response = ""
 		ReadChar = 1
@@ -467,7 +472,12 @@ class ELM327:
 			ReadChar = self.ELM327.read()
 			if ReadChar != b'>':
 				Response += str(ReadChar, 'utf-8')
-		return Response.replace('\r', '\n').replace('\n\n', '\n').replace('NO DATA', '00000000000000')
+		Result = Response.replace('\r', '\n').replace('\n\n', '\n').replace('NO DATA', '00000000000000')
+
+		if DEBUG == "ON":
+			print("DEBUG RECEIVED: " + str(Result))
+
+		return Result
 
 
 

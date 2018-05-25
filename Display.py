@@ -14,7 +14,7 @@
 #/***************************************************************************/
 #/* Raspberry Pi ELM327 OBBII CAN BUS Diagnostic Software.                  */
 #/*                                                                         */
-#/* (C) Jason Birch 2018-05-15 V1.04                                        */
+#/* (C) Jason Birch 2018-05-25 V1.06                                        */
 #/*                                                                         */
 #/* Class: Display                                                          */
 #/* Look after a hierarchy of objects to be displayed.                      */
@@ -29,6 +29,10 @@ import Visual
 import Button
 import Gadgit
 import Plot
+
+
+
+DEBUG = "OFF"
 
 
 
@@ -74,7 +78,8 @@ class Display:
 
 		# Get the dimensions of the surface to draw the visual object onto.
 		(self.DisplayXLen, self.DisplayYLen) = pygame.Surface.get_size(self.ThisSurface)
-		print("DISPLAY: " + str(self.DisplayXLen) + " x " + str(self.DisplayYLen))
+		if DEBUG == "ON":
+			print("DISPLAY: " + str(self.DisplayXLen) + " x " + str(self.DisplayYLen))
 
 		self.SurfaceXLen = pygame.display.Info().current_w
 		self.SurfaceYLen = pygame.display.Info().current_h
@@ -253,7 +258,8 @@ class Display:
 							for MoveGadgitIndex in range(ThisGadgitIndex, TopGagitIndex):
 								Visual.VisualZOrder[MoveGadgitIndex] = Visual.VisualZOrder[MoveGadgitIndex + 1]
 							# If a gadgit close button was pressed, remove the gadgit.
-#							print(str(Result))
+							if DEBUG == "ON":
+								print(str(Result))
 							if Result["BUTTON"] == "CLOSE":
 								self.CurrentTab.pop(ThisGadget, None)
 						break

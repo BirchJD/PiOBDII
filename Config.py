@@ -14,7 +14,7 @@
 #/***************************************************************************/
 #/* Raspberry Pi ELM327 OBBII CAN BUS Diagnostic Software.                  */
 #/*                                                                         */
-#/* (C) Jason Birch 2018-05-24 V1.05                                        */
+#/* (C) Jason Birch 2018-05-25 V1.06                                        */
 #/*                                                                         */
 #/* Class: Config                                                           */
 #/* Display a dialog showing a list of configurable items for the           */
@@ -35,6 +35,7 @@ ConfigValues = {
 	"FontName" : "freemono",
 	"SerialPort" : "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_A800eaG9-if00-port0",
 	"Vehicle" : "DATA/TroubleCodes-R53_Cooper_S.txt",
+	"Debug": "OFF",
 }
 
 
@@ -55,6 +56,8 @@ def LoadConfig():
 				ConfigValues["SerialPort"] = str(TextLine[11:])
 			elif TextLine[:8] == "Vehicle=":
 				ConfigValues["Vehicle"] = str(TextLine[8:])
+			elif TextLine[:6] == "Debug=":
+				ConfigValues["Debug"] = str(TextLine[6:])
 		File.close()
 
 
@@ -67,6 +70,7 @@ def SaveConfig():
 	File.write("FontName=" + str(ConfigValues["FontName"]) + "\n")
 	File.write("SerialPort=" + str(ConfigValues["SerialPort"]) + "\n")
 	File.write("Vehicle=" + str(ConfigValues["Vehicle"]) + "\n")
+	File.write("Debug=" + str(ConfigValues["Debug"]) + "\n")
 	File.close()
 
 
@@ -88,9 +92,10 @@ class Config(Visual.Visual):
 		self.Buttons = {
 			# Config covers full display with this button to prevent other user interface being used while dialog visible.
 			"UI_BLOCKER" : Button.Button(self.ThisSurface, "UI_BLOCKER", Visual.PRESS_NONE, -self.xLen, -self.yLen, self.DisplayXLen, self.DisplayYLen, "UI_BLOCKER"),
-			"SELECT_FONT" : Button.Button(self.ThisSurface, "SELECT_FONT", Visual.PRESS_DOWN, Visual.X_MARGIN, 50, Button.Visual.BUTTON_HEIGHT, Button.Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Select.png"),
-			"SELECT_SERIAL_PORT" : Button.Button(self.ThisSurface, "SELECT_SERIAL_PORT", Visual.PRESS_DOWN, Visual.X_MARGIN, 125, Button.Visual.BUTTON_HEIGHT, Button.Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Select.png"),
-			"SELECT_VEHICLE" : Button.Button(self.ThisSurface, "SELECT_VEHICLE", Visual.PRESS_DOWN, Visual.X_MARGIN, 200, Button.Visual.BUTTON_HEIGHT, Button.Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Select.png"),
+			"SELECT_FONT" : Button.Button(self.ThisSurface, "SELECT_FONT", Visual.PRESS_DOWN, Visual.X_MARGIN, 10, Button.Visual.BUTTON_HEIGHT, Button.Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Select.png"),
+			"SELECT_SERIAL_PORT" : Button.Button(self.ThisSurface, "SELECT_SERIAL_PORT", Visual.PRESS_DOWN, Visual.X_MARGIN, 85, Button.Visual.BUTTON_HEIGHT, Button.Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Select.png"),
+			"SELECT_VEHICLE" : Button.Button(self.ThisSurface, "SELECT_VEHICLE", Visual.PRESS_DOWN, Visual.X_MARGIN, 160, Button.Visual.BUTTON_HEIGHT, Button.Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Select.png"),
+			"SELECT_DEBUG" : Button.Button(self.ThisSurface, "SELECT_DEBUG", Visual.PRESS_DOWN, Visual.X_MARGIN, 235, Button.Visual.BUTTON_HEIGHT, Button.Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Select.png"),
 			"SAVE_CONFIG" : Button.Button(self.ThisSurface, "SAVE_CONFIG", Visual.PRESS_DOWN, Button.Visual.BUTTON_HEIGHT, self.yLen - 1.5*Button.Visual.BUTTON_HEIGHT, Button.Visual.BUTTON_HEIGHT, Button.Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Config.png"),
 			"CLOSE" : Button.Button(self.ThisSurface, "CLOSE", Visual.PRESS_DOWN, self.xLen - 2*Button.Visual.BUTTON_HEIGHT, self.yLen - 1.5*Button.Visual.BUTTON_HEIGHT, Button.Visual.BUTTON_HEIGHT, Button.Visual.BUTTON_HEIGHT, "IMAGE:ICONS/Close.png"),
 		}
@@ -179,6 +184,11 @@ class Config(Visual.Visual):
 			if EventType == Visual.EVENT_MOUSE_DOWN:
 				if Result["BUTTON"] == "SAVE_CONFIG":
 					SaveConfig()
+				elif Result["BUTTON"] == "SELECT_DEBUG":
+					if ConfigValues["Debug"] == "OFF":
+						ConfigValues["Debug"] = "ON"
+					else:
+						ConfigValues["Debug"] = "OFF"
 		else:
 			# Always return true, no other user interface is available until this dialog answered.
 			Result = {}
@@ -201,31 +211,41 @@ class Config(Visual.Visual):
 		ThisText = "Font:"
 		TextHeight = Visual.Fonts["LargeFont"].get_rect(ThisText)[3]
 		RenderText = Visual.Fonts["LargeFont"].render(ThisText, self.ColourText)
-		ThisSurface.blit(RenderText[0], (self.xPos + xOffset + 2*Visual.X_MARGIN + Visual.BUTTON_HEIGHT, self.yPos + yOffset + 50))
+		ThisSurface.blit(RenderText[0], (self.xPos + xOffset + 2*Visual.X_MARGIN + Visual.BUTTON_HEIGHT, self.yPos + yOffset + 10))
 		ThisText = ConfigValues["FontName"]
 		TextHeight = Visual.Fonts["LargeFont"].get_rect(ThisText)[3]
 		RenderText = Visual.Fonts["LargeFont"].render(ThisText, self.ColourValueText)
-		ThisSurface.blit(RenderText[0], (self.xPos + xOffset + 2*Visual.X_MARGIN + Visual.BUTTON_HEIGHT, self.yPos + yOffset + 50 + TextHeight + Visual.Y_MARGIN))
+		ThisSurface.blit(RenderText[0], (self.xPos + xOffset + 2*Visual.X_MARGIN + Visual.BUTTON_HEIGHT, self.yPos + yOffset + 10 + TextHeight + Visual.Y_MARGIN))
 
 		# Display the serial port configuration option.
 		ThisText = "Serial Port:"
 		TextHeight = Visual.Fonts["LargeFont"].get_rect(ThisText)[3]
 		RenderText = Visual.Fonts["LargeFont"].render(ThisText, self.ColourText)
-		ThisSurface.blit(RenderText[0], (self.xPos + xOffset + 2*Visual.X_MARGIN + Visual.BUTTON_HEIGHT, self.yPos + yOffset + 125))
+		ThisSurface.blit(RenderText[0], (self.xPos + xOffset + 2*Visual.X_MARGIN + Visual.BUTTON_HEIGHT, self.yPos + yOffset + 85))
 		ThisText = ConfigValues["SerialPort"]
 		TextHeight = Visual.Fonts["LargeFont"].get_rect(ThisText)[3]
 		RenderText = Visual.Fonts["LargeFont"].render(ThisText, self.ColourValueText)
-		ThisSurface.blit(RenderText[0], (self.xPos + xOffset + 2*Visual.X_MARGIN + Visual.BUTTON_HEIGHT, self.yPos + yOffset + 125 + TextHeight + Visual.Y_MARGIN))
+		ThisSurface.blit(RenderText[0], (self.xPos + xOffset + 2*Visual.X_MARGIN + Visual.BUTTON_HEIGHT, self.yPos + yOffset + 85 + TextHeight + Visual.Y_MARGIN))
 
 		# Display the vehicle configuration option.
 		ThisText = "Vehicle:"
 		TextHeight = Visual.Fonts["LargeFont"].get_rect(ThisText)[3]
 		RenderText = Visual.Fonts["LargeFont"].render(ThisText, self.ColourText)
-		ThisSurface.blit(RenderText[0], (self.xPos + xOffset + 2*Visual.X_MARGIN + Visual.BUTTON_HEIGHT, self.yPos + yOffset + 200))
+		ThisSurface.blit(RenderText[0], (self.xPos + xOffset + 2*Visual.X_MARGIN + Visual.BUTTON_HEIGHT, self.yPos + yOffset + 160))
 		ThisText = ConfigValues["Vehicle"]
 		TextHeight = Visual.Fonts["LargeFont"].get_rect(ThisText)[3]
 		RenderText = Visual.Fonts["LargeFont"].render(ThisText, self.ColourValueText)
-		ThisSurface.blit(RenderText[0], (self.xPos + xOffset + 2*Visual.X_MARGIN + Visual.BUTTON_HEIGHT, self.yPos + yOffset + 200 + TextHeight + Visual.Y_MARGIN))
+		ThisSurface.blit(RenderText[0], (self.xPos + xOffset + 2*Visual.X_MARGIN + Visual.BUTTON_HEIGHT, self.yPos + yOffset + 160 + TextHeight + Visual.Y_MARGIN))
+
+		# Display the debug configuration option.
+		ThisText = "Debug:"
+		TextHeight = Visual.Fonts["LargeFont"].get_rect(ThisText)[3]
+		RenderText = Visual.Fonts["LargeFont"].render(ThisText, self.ColourText)
+		ThisSurface.blit(RenderText[0], (self.xPos + xOffset + 2*Visual.X_MARGIN + Visual.BUTTON_HEIGHT, self.yPos + yOffset + 235))
+		ThisText = ConfigValues["Debug"]
+		TextHeight = Visual.Fonts["LargeFont"].get_rect(ThisText)[3]
+		RenderText = Visual.Fonts["LargeFont"].render(ThisText, self.ColourValueText)
+		ThisSurface.blit(RenderText[0], (self.xPos + xOffset + 2*Visual.X_MARGIN + Visual.BUTTON_HEIGHT, self.yPos + yOffset + 235 + TextHeight + Visual.Y_MARGIN))
 
 		# Display all buttons on the gadgit.
 		for ThisButton in self.Buttons:

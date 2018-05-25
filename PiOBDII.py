@@ -36,6 +36,9 @@
 #/*                    YouTube video, pairing Bluetooth devices on a        */
 #/*                    Raspberry Pi. Plus other minor updates.              */
 #/*                                                                         */
+#/* 2018-05-25 V1.06 - Added debug config option to toggle on and off debug */
+#/*                    logging to resolve issues.                           */
+#/*                                                                         */
 #/* Initial OBDII Python application to read trouble codes from the ECU and */
 #/* display each trouble code along with it's human readable description.   */
 #/*                                                                         */
@@ -104,9 +107,11 @@ def DebugDisplayZOrder():
 #/************************************************/
 def ApplyConfig():
 	Config.LoadConfig()
-	Visual.VisualZOrder[0].SetFont(Config.ConfigValues["FontName"])
+	ELM327.DEBUG = Config.ConfigValues["Debug"]
 	ELM327.SERIAL_PORT_NAME = Config.ConfigValues["SerialPort"]
+	ThisDisplay.DEBUG = Config.ConfigValues["Debug"]
 	ThisELM327.LoadVehicle(Config.ConfigValues["Vehicle"])
+	Visual.VisualZOrder[0].SetFont(Config.ConfigValues["FontName"])
 
 
 
@@ -439,7 +444,8 @@ while ExitFlag == False:
 			if ThisEvent.type == pygame.MOUSEBUTTONDOWN:
 				# Pass button down events to all buttons and gadgits.
 				ButtonGadgit = ThisDisplay.IsEvent(Visual.EVENT_MOUSE_DOWN, ThisEvent.pos[0], ThisEvent.pos[1], ThisEvent.button)
-#				print(str(ButtonGadgit))
+				if Config.ConfigValues["Debug"] == "ON":
+					print(str(ButtonGadgit))
 				if ButtonGadgit != False:
 					# If exit button is pressed, finish the application.
 					if ButtonGadgit["BUTTON"] == "EXIT":

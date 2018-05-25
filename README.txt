@@ -34,6 +34,9 @@
 #/*                    YouTube video, pairing Bluetooth devices on a        */
 #/*                    Raspberry Pi. Plus other minor updates.              */
 #/*                                                                         */
+#/* 2018-05-25 V1.06 - Added debug config option to toggle on and off debug */
+#/*                    logging to resolve issues.                           */
+#/*                                                                         */
 #/* Initial OBDII Python application to read trouble codes from the ECU and */
 #/* display each trouble code along with it's human readable description.   */
 #/*                                                                         */
