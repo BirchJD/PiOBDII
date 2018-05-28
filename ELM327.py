@@ -14,7 +14,7 @@
 #/***************************************************************************/
 #/* Raspberry Pi ELM327 OBBII CAN BUS Diagnostic Software.                  */
 #/*                                                                         */
-#/* (C) Jason Birch 2018-05-25 V1.07                                        */
+#/* (C) Jason Birch 2018-05-28 V1.08                                        */
 #/*                                                                         */
 #/* Class: ELM327                                                           */
 #/* Handle communications with an ELM327 device, communicating with the     */
@@ -40,6 +40,7 @@ SERIAL_PORT_BAUD = 38400
 SERIAL_PORT_TIME_OUT = 7
 
 # ELM327 Device related constants.
+ELM_RESET_PERIOD = 1
 ELM_CONNECT_SETTLE_PERIOD = 5
 
 # Constant string responses.
@@ -316,6 +317,8 @@ class ELM327:
 			self.ELM327 = serial.Serial(SERIAL_PORT_NAME, SERIAL_PORT_BAUD)
 			self.ELM327.timeout = SERIAL_PORT_TIME_OUT
 			self.ELM327.write_timeout = SERIAL_PORT_TIME_OUT
+
+			time.sleep(ELM_RESET_PERIOD)
 
 			# Initialize the ELM327 device.
 			Response = self.GetResponse(b'AT Z\r')

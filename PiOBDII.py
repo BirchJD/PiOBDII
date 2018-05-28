@@ -44,6 +44,9 @@
 #/*                    Fix for issues when this is the case by being more   */
 #/*                    specific on ELM327 Device initialisation.            */
 #/*                                                                         */
+#/* 2018-05-28 V1.08 - Added GO/STOP button, so data logging can occur as   */
+#/*                    fast as the ELM327 can communicate via OBDII.        */
+#/*                                                                         */
 #/* Initial OBDII Python application to read trouble codes from the ECU and */
 #/* display each trouble code along with it's human readable description.   */
 #/*                                                                         */
@@ -57,6 +60,7 @@
 
 import subprocess
 import datetime
+import random
 import _thread
 import pygame
 import ELM327
@@ -74,8 +78,6 @@ import PDF
 
 DISPLAY_PERIOD = 100
 TIMER_PERIOD = 500
-READ_ELM_COUNT = 8
-PLOT_ELM_COUNT = 4
 
 
 # Start value for pygame user events.
@@ -83,6 +85,9 @@ EVENT_TIMER = pygame.USEREVENT + 1
 
 # Lock to prevent ELM327 communications occuring when an existing one still running.
 LockELM327 = _thread.allocate_lock()
+
+# Lock to prevent multiple aquisition threads of execution.
+LockAquisition = _thread.allocate_lock()
 
 # List of visual class instances to be flashed.
 FlashVisuals = {}
@@ -159,8 +164,11 @@ def SavePdfReport(FileName):
 		if LockELM327.acquire(0):
 			FreezeFrameData(ThisDisplay)
 		# Add data to the PDF report.
+		Now = datetime.datetime.now()
+		NowTime = Now.strftime("%H:%M")
+		NowDate = Now.strftime("%Y-%m-%d")
 		PdfData = [
-			["OBDII VEHICLE INFORMATION", ThisDisplay.VehicleInfo["INFO"].GetText()],
+			["OBDII VEHICLE INFORMATION", "PiOBDII|" + NowDate + " " + NowTime + "\n\n" + ThisDisplay.VehicleInfo["INFO"].GetText()],
 			["OBDII TROUBLE INFORMATION", ThisDisplay.TroubleInfo["INFO"].GetText()],
 			["OBDII DATA FREEZE FRAMES", ThisDisplay.FreezeFrameData["INFO"].GetText()],
 			["OBDII DATA FRAME", ThisDisplay.FrameData["INFO"].GetText()],
@@ -377,6 +385,28 @@ def PlotData(ThisDisplay):
 
 
 
+#/*********************************************************/
+#/* Aquire data as fast as possible for plots and meters. */
+#/*********************************************************/
+def AquisitionLoop(ThisDisplay):
+	try:
+		while (ThisDisplay.Meters["GO_STOP"].GetDown() == True or ThisDisplay.Plots["GO_STOP"].GetDown() == True):
+			# Update the gadgit data from the ECU.
+			if ThisDisplay.CurrentTab == ThisDisplay.Meters and ThisDisplay.Meters["LOCK"].GetDown() == True and ThisDisplay.Meters["GO_STOP"].GetDown() == True:
+				if LockELM327.acquire(0):
+					_thread.start_new_thread(MeterData, (ThisDisplay, ))
+			# Update the plot data from the ECU.
+			if ThisDisplay.CurrentTab == ThisDisplay.Plots and ThisDisplay.Plots["GO_STOP"].GetDown() == True:
+				if LockELM327.acquire(0):
+					_thread.start_new_thread(PlotData, (ThisDisplay, ))
+	except Exception as Catch:
+		print(str(Catch))
+	# Allow this function to be called again if required.
+	LockAquisition.release()
+
+
+
+
 # Set the configuration before start.
 ApplyConfig()
 
@@ -389,8 +419,6 @@ if LockELM327.acquire(0):
 
 # Application message loop.
 ExitFlag = False
-ReadElmCount = READ_ELM_COUNT
-PlotElmCount = PLOT_ELM_COUNT
 while ExitFlag == False:
 	pygame.time.wait(DISPLAY_PERIOD)
 
@@ -424,26 +452,17 @@ while ExitFlag == False:
 						FlashVisuals[ThisVisual].SetDown(True)
 					else:
 						FlashVisuals[ThisVisual].SetDown(False)
-
-				# Update the gadgit data from the ECU.
-				ReadElmCount -= 1
-				if ThisDisplay.CurrentTab == ThisDisplay.Meters and ReadElmCount <= 0 and ThisDisplay.Buttons["LOCK"].GetDown() == True:
-					if LockELM327.acquire(0):
-						ReadElmCount = READ_ELM_COUNT
-						pygame.time.set_timer(EVENT_TIMER, TIMER_PERIOD)
-						_thread.start_new_thread(MeterData, (ThisDisplay, ))
-						pygame.time.set_timer(EVENT_TIMER, TIMER_PERIOD)
-
-				# Update the plot data from the ECU.
-				PlotElmCount -= 1
-				if ThisDisplay.CurrentTab == ThisDisplay.Plots and PlotElmCount <= 0:
-					if LockELM327.acquire(0):
-						PlotElmCount = PLOT_ELM_COUNT
-						pygame.time.set_timer(EVENT_TIMER, TIMER_PERIOD)
-						_thread.start_new_thread(PlotData, (ThisDisplay, ))
-						pygame.time.set_timer(EVENT_TIMER, TIMER_PERIOD)
 			except Exception as Catch:
 				print(str(Catch))
+		# Only process the following events if the ELM327 device is currently communicating.
+		elif LockELM327.locked() == True:
+			if ThisEvent.type == pygame.MOUSEBUTTONDOWN:
+				# Allow GO/STOP button to be toggled while ELM327 communications are occuring.
+				if ThisDisplay.CurrentTab == ThisDisplay.Meters:
+					ThisDisplay.Meters["GO_STOP"].IsEvent(Visual.EVENT_MOUSE_DOWN, ThisEvent.pos[0], ThisEvent.pos[1], ThisEvent.button)
+				elif ThisDisplay.CurrentTab == ThisDisplay.Plots:
+					ThisDisplay.Plots["GO_STOP"].IsEvent(Visual.EVENT_MOUSE_DOWN, ThisEvent.pos[0], ThisEvent.pos[1], ThisEvent.button)
+
 		# Only process the following events if the ELM327 device is not currently communicating.
 		elif LockELM327.locked() == False:
 			if ThisEvent.type == pygame.MOUSEBUTTONDOWN:
@@ -482,6 +501,11 @@ while ExitFlag == False:
 										ThisDisplay.Meters[SelectGadgit].SetPID(ThisPID, ValidPIDs[ThisPID])
 									else:
 										ThisDisplay.Plots["PLOT"].SetPID(int(SelectGadgit[5]) - 1, ThisPID, ValidPIDs[ThisPID])
+								else:
+									if SelectGadgit[:5] != "PLOT_":
+										ThisDisplay.Meters[SelectGadgit].SetPID("", "")
+									else:
+										ThisDisplay.Plots["PLOT"].SetPID(int(SelectGadgit[5]) - 1, "", "")
 							elif ButtonGadgit["GADGIT"] == "SELECT_FONT_NAME":
 								Config.ConfigValues["FontName"] = SelectedLine
 							elif ButtonGadgit["GADGIT"] == "SELECT_SERIAL_PORT_NAME":
@@ -552,7 +576,7 @@ while ExitFlag == False:
 						# Get a list of all valid PIDs the connected ECU supports.
 						ValidPIDs = ThisELM327.GetValidPIDs()
 						# Get the information available for each of the supported PIDs.
-						SelectText = ""
+						SelectText = "NONE\n"
 						for PID in sorted(ValidPIDs):
 							if ValidPIDs[PID][ELM327.FIELD_PID_DESCRIPTION] != '!':
 								PidDescription = ValidPIDs[PID].split("|")
@@ -590,6 +614,29 @@ while ExitFlag == False:
 					elif ButtonGadgit["BUTTON"] == "FRAME" or ButtonGadgit["BUTTON"] == "RELOAD":
 						if LockELM327.acquire(0):
 							_thread.start_new_thread(FrameData, (ThisDisplay, ))
+					# If add button is pressed, add a new gadgit to the meters tab.
+					elif ButtonGadgit["BUTTON"] == "ADD":
+						if ThisDisplay.CurrentTab == ThisDisplay.Meters:
+							NewName = "{:X}".format(random.getrandbits(128))
+							ThisDisplay.Meters[NewName] = Gadgit.Gadgit(ThisDisplay.ThisSurface, NewName, Visual.PRESS_NONE, 0, 2 * Visual.BUTTON_HEIGHT, ThisDisplay.GadgitWidth, ThisDisplay.GadgitHeight, "NEW")
+					# If GO/STOP button is pressed, start data aquisition.
+					elif ButtonGadgit["BUTTON"] == "GO_STOP":
+						if ThisDisplay.CurrentTab == ThisDisplay.Meters or ThisDisplay.CurrentTab == ThisDisplay.Plots:
+							if LockAquisition.acquire(0):
+								_thread.start_new_thread(AquisitionLoop, (ThisDisplay, ))
+					# If add button is pressed, add a new gadgit to the meters tab.
+					elif ButtonGadgit["BUTTON"] == "LOCK":
+						if ThisDisplay.Meters["LOCK"].GetDown() == False:
+							ThisDisplay.Meters["ADD"].SetVisible(True)
+						else:
+							ThisDisplay.Meters["ADD"].SetVisible(False)
+						for ThisGadget in ThisDisplay.Meters:
+							if type(ThisDisplay.Meters[ThisGadget]) is not str and type(ThisDisplay.Meters[ThisGadget]) is not Button.Button:
+								for ThisButton in ThisDisplay.Meters[ThisGadget].Buttons:
+									if ThisDisplay.Meters["LOCK"].GetDown() == False:
+										ThisDisplay.Meters[ThisGadget].Buttons[ThisButton].SetVisible(True)
+									else:
+										ThisDisplay.Meters[ThisGadget].Buttons[ThisButton].SetVisible(False)
 			elif ThisEvent.type == pygame.MOUSEBUTTONUP:
 				# Pass button up events to all buttons and gadgits.
 				ButtonGadgit = ThisDisplay.IsEvent(Visual.EVENT_MOUSE_UP, ThisEvent.pos[0], ThisEvent.pos[1], ThisEvent.button)

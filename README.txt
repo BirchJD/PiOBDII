@@ -42,6 +42,9 @@
 #/*                    Fix for issues when this is the case by being more   */
 #/*                    specific on ELM327 Device initialisation.            */
 #/*                                                                         */
+#/* 2018-05-28 V1.08 - Added GO/STOP button, so data logging can occur as   */
+#/*                    fast as the ELM327 can communicate via OBDII.        */
+#/*                                                                         */
 #/* Initial OBDII Python application to read trouble codes from the ECU and */
 #/* display each trouble code along with it's human readable description.   */
 #/*                                                                         */
@@ -188,6 +191,10 @@ https://www.youtube.com/watch?v=JHP_yXznV2Q
 
 BLUETOOTH DONGLE (Perform operations here as root user)
 ================
+WARNING: Some Bluetooth adapters have been found to be fake and have
+reliability issues:
+https://obd-car-doctor.com/en-us/thread/Attention-Bad-Bluetooth-adapters-/
+
 
 EXAMPLE CONNECTING TO A BLUETOOTH ELM327 DONGLE FROM LINUX COMMAND LINE
 OR THE BUILT IN RASPBERRY PI 3 BLUETOOTH DEVICE:

@@ -14,7 +14,7 @@
 #/***************************************************************************/
 #/* Raspberry Pi ELM327 OBBII CAN BUS Diagnostic Software.                  */
 #/*                                                                         */
-#/* (C) Jason Birch 2018-05-15 V1.04                                        */
+#/* (C) Jason Birch 2018-05-28 V1.08                                        */
 #/*                                                                         */
 #/* Class: PDF                                                              */
 #/* Create save and print PDF reports.                                      */
@@ -48,8 +48,8 @@ class PDF:
 		for ThisPage in TextPages:
 			# Create a page of the report.
 			ThisPageBytes = io.BytesIO()
-			ThisPageCanvas = reportlab.pdfgen.canvas.Canvas(ThisPageBytes, pagesize=reportlab.lib.pagesizes.A4)
-			(PageWidth, PageHeight) = reportlab.lib.pagesizes.A4
+			ThisPageCanvas = reportlab.pdfgen.canvas.Canvas(ThisPageBytes, pagesize=reportlab.lib.pagesizes.landscape(reportlab.lib.pagesizes.A4))
+			(PageWidth, PageHeight) = reportlab.lib.pagesizes.landscape(reportlab.lib.pagesizes.A4)
 			reportlab.pdfbase.pdfmetrics.registerFont(reportlab.pdfbase.ttfonts.TTFont(FontName, FontName + '.ttf'))
 			FontSize = 32
 			ThisPageCanvas.setFont(FontName, FontSize)
