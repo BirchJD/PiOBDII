@@ -45,6 +45,11 @@
 #/* 2018-05-28 V1.08 - Added GO/STOP button, so data logging can occur as   */
 #/*                    fast as the ELM327 can communicate via OBDII.        */
 #/*                                                                         */
+#/* 2018-05-29 V1.09 - Updated to try and test some of the fake ELM327      */
+#/*                    devices. Do not use fake devices, there are reports  */
+#/*                    that they can cause damage.                          */
+#/* REF: obd-car-doctor.com/en-us/thread/Attention-Bad-Bluetooth-adapters-/ */
+#/*                                                                         */
 #/* Initial OBDII Python application to read trouble codes from the ECU and */
 #/* display each trouble code along with it's human readable description.   */
 #/*                                                                         */
@@ -192,7 +197,8 @@ https://www.youtube.com/watch?v=JHP_yXznV2Q
 BLUETOOTH DONGLE (Perform operations here as root user)
 ================
 WARNING: Some Bluetooth adapters have been found to be fake and have
-reliability issues:
+reliability issues. They don't always return all data, so they may send
+bad data to the ECU and cause serious problems:
 https://obd-car-doctor.com/en-us/thread/Attention-Bad-Bluetooth-adapters-/
 
 

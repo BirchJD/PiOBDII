@@ -14,7 +14,7 @@
 #/***************************************************************************/
 #/* Raspberry Pi ELM327 OBBII CAN BUS Diagnostic Software.                  */
 #/*                                                                         */
-#/* (C) Jason Birch 2018-05-28 V1.08                                        */
+#/* (C) Jason Birch 2018-05-29 V1.09                                        */
 #/*                                                                         */
 #/* Class: ELM327                                                           */
 #/* Handle communications with an ELM327 device, communicating with the     */
@@ -36,8 +36,13 @@ CONNECT_CAN_BUS_FAIL = 2
 
 # Serial port constants.
 SERIAL_PORT_NAME = None
+#SERIAL_PORT_BAUD = 115200
+#SERIAL_PORT_BAUD = 57600
 SERIAL_PORT_BAUD = 38400
+#SERIAL_PORT_BAUD = 9600
 SERIAL_PORT_TIME_OUT = 7
+SERIAL_LINEFEED_TYPE = b'\r'
+#SERIAL_LINEFEED_TYPE = b'\r\n'
 
 # ELM327 Device related constants.
 ELM_RESET_PERIOD = 1
@@ -267,35 +272,38 @@ class ELM327:
 	def GetInfo(self):
 		Result = ""
 
-		# Get the current serial port in use by the ELM327 device.
-		Result += "Serial Port|" + self.ELM327.name + "\n"
-		# Get the ELM device version.
-		Response = self.GetResponse(b'AT I\r')
-		Result += "ELM Device Version|" + Response
-		# Get the ELM device description.
-		Response = self.GetResponse(b'AT @1\r')
-		Result += "ELM Device Description|" + Response
-		# Get the ELM device user supplied description.
-		Response = self.GetResponse(b'AT @2\r')
-		Result += "ELM Device User Data|" + Response
-		# Get the current OBDII data protocol after OBDII CAN BUS communication.
-		Response = self.GetResponse(b'AT DP\r')
-		Result += "Using CAN BUS Protocol|" + Response
-		# Get the Voltage measured at the OBDII connector.
-		Response = self.GetResponse(b'AT RV\r')
-		Result += "Volt At OBDII Connector|" + Response
-		# Get the CAN status.
-		Response = self.GetResponse(b'AT CS\r')
-		Result += "CAN Status|" + Response
-		# Get the key words.
-		Response = self.GetResponse(b'AT KW\r')
-		Result += "Key Words|" + Response
-		# Get the ELM327 buffer dump.
-		Response = self.GetResponse(b'AT BD\r')
-		Result += "ELM327 Buffer Dump|" + Response
-		# Get the programmable paramaters.
-		Response = self.GetResponse(b'AT PPS\r')
-		Result += "ELM327 Programmable Paramaters:|\n" + Response
+		try:
+			# Get the current serial port in use by the ELM327 device.
+			Result += "Serial Port|" + self.ELM327.name + "\n"
+			# Get the ELM device version.
+			Response = self.GetResponse(b'AT I\r')
+			Result += "ELM Device Version|" + Response
+			# Get the ELM device description.
+			Response = self.GetResponse(b'AT @1\r')
+			Result += "ELM Device Description|" + Response
+			# Get the ELM device user supplied description.
+			Response = self.GetResponse(b'AT @2\r')
+			Result += "ELM Device User Data|" + Response
+			# Get the current OBDII data protocol after OBDII CAN BUS communication.
+			Response = self.GetResponse(b'AT DP\r')
+			Result += "Using CAN BUS Protocol|" + Response
+			# Get the Voltage measured at the OBDII connector.
+			Response = self.GetResponse(b'AT RV\r')
+			Result += "Volt At OBDII Connector|" + Response
+			# Get the CAN status.
+			Response = self.GetResponse(b'AT CS\r')
+			Result += "CAN Status|" + Response
+			# Get the key words.
+			Response = self.GetResponse(b'AT KW\r')
+			Result += "Key Words|" + Response
+			# Get the ELM327 buffer dump.
+			Response = self.GetResponse(b'AT BD\r')
+			Result += "ELM327 Buffer Dump|" + Response
+			# Get the programmable paramaters.
+			Response = self.GetResponse(b'AT PPS\r')
+			Result += "ELM327 Programmable Paramaters:|\n" + Response
+		except:
+			Result += "\nWARNING: PARTIAL DATA RETURNED\nTHIS COULD BE A FAKE ELM327 DEVICE AND SHOULD NOT BE USED IF IT IS FAKE.\n"
 
 		return Result
 
@@ -322,6 +330,8 @@ class ELM327:
 
 			# Initialize the ELM327 device.
 			Response = self.GetResponse(b'AT Z\r')
+
+			time.sleep(ELM_RESET_PERIOD)
 
 			# Echo Off, for faster communications.
 			Response = self.GetResponse(b'AT E0\r').replace('\r', '')
@@ -361,15 +371,16 @@ class ELM327:
 			# Set CAN Baud to high speed.
 			if self.InitResult == "":
 				Response = self.GetResponse(b'AT IB 10\r')
-				if Response != 'OK\n':
+				if Response[-3:] != 'OK\n':
 					self.InitResult += "FAILED: AT IB 10 (Set High Speed CAN BUS)\n"
 
 			if self.InitResult != "":
 				Result = CONNECT_ELM327_FAIL
 				self.InitResult += "FAILED TO INITIALIZE ELM327 DEVICE.\n"
-		except:
+		except Exception as Catch:
 			Result = CONNECT_ELM327_FAIL
 			self.InitResult += "FAILED TO INITIALIZE ELM327 DEVICE.\n"
+			print(str(Catch))
 
 		if Result == CONNECT_SUCCESS:
 			# Wait before tring to connect to ensure EML device is idle.
@@ -483,20 +494,27 @@ class ELM327:
 #/* response.                                     */
 #/*************************************************/
 	def GetResponse(self, Data):
+		Data = Data.replace(b'\r', SERIAL_LINEFEED_TYPE)
+
 		if DEBUG == "ON":
-			print("DEBUG SENDING: " + str(Data))
+			print("DEBUG SENDING [" + str(len(Data)) + "] " + str(Data))
 
 		self.ELM327.write(Data)
 		Response = ""
 		ReadChar = 1
 		while ReadChar != b'>' and ReadChar != b'' and ReadChar != 0:
 			ReadChar = self.ELM327.read()
-			if ReadChar != b'>':
+			if ReadChar[0] > 127:
+				if DEBUG == "ON":
+					print("REJECTING RECEIVED CHARACTER: " + str(int(ReadChar[0])))
+			elif ReadChar != b'>':
 				Response += str(ReadChar, 'utf-8')
 		Result = Response.replace('\r', '\n').replace('\n\n', '\n').replace('NO DATA', '00000000000000')
+		if Result[-1:] != '\n':
+			Result += '\n'
 
 		if DEBUG == "ON":
-			print("DEBUG RECEIVED: " + str(Result))
+			print("DEBUG RECEIVED [" + str(len(Result)) + "] " + str(Result))
 
 		return Result
 
